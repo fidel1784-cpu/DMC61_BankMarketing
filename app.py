@@ -212,9 +212,11 @@ elif opcion == "Análisis EDA":
 
     numericas, categoricas = clasificar_variables(df)
 
-    tab1, tab2 = st.tabs([
+    tab1, tab2, tab3, tab4 = st.tabs([
         "1️⃣ Información general",
-        "2️⃣ Clasificación de variables"
+        "2️⃣ Clasificación",
+        "3️⃣ Estadísticas",
+        "4️⃣ Valores faltantes"
     ])
 
     # -----------------------------------------------------
@@ -366,3 +368,186 @@ elif opcion == "Análisis EDA":
             f"El dataset contiene {len(numericas)} variables numéricas "
             f"y {len(categoricas)} variables categóricas."
         )
+
+    # -----------------------------------------------------
+    # ÍTEM 3: ESTADÍSTICAS DESCRIPTIVAS
+    # -----------------------------------------------------
+    with tab3:
+
+        st.header("Ítem 3: Estadísticas descriptivas")
+
+        st.write(
+            """
+            Las estadísticas descriptivas permiten resumir el comportamiento
+            de las variables numéricas mediante medidas de tendencia central
+            y dispersión.
+            """
+        )
+
+        estadisticas = df[numericas].describe().T
+
+        estadisticas["median"] = df[numericas].median()
+        estadisticas["variance"] = df[numericas].var()
+
+        estadisticas = estadisticas.rename(columns={
+            "count": "Cantidad",
+            "mean": "Media",
+            "std": "Desviación estándar",
+            "min": "Mínimo",
+            "25%": "Percentil 25",
+            "50%": "Percentil 50",
+            "75%": "Percentil 75",
+            "max": "Máximo",
+            "median": "Mediana",
+            "variance": "Varianza"
+        })
+
+        st.subheader("Resumen estadístico de variables numéricas")
+
+        st.dataframe(
+            estadisticas.round(2),
+            use_container_width=True
+        )
+
+        st.subheader("Interpretación de medias, medianas y dispersión")
+
+        variable_interpretar = st.selectbox(
+            "Seleccione una variable numérica:",
+            numericas,
+            key="variable_estadisticas"
+        )
+
+        media = np.mean(df[variable_interpretar])
+        mediana = np.median(df[variable_interpretar])
+        desviacion = np.std(df[variable_interpretar])
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.metric("Media", f"{media:.2f}")
+
+        with col2:
+            st.metric("Mediana", f"{mediana:.2f}")
+
+        with col3:
+            st.metric("Desviación estándar", f"{desviacion:.2f}")
+
+        if media > mediana:
+            forma_distribucion = (
+                "La media es mayor que la mediana, lo que puede indicar "
+                "una distribución con valores altos o sesgo hacia la derecha."
+            )
+        elif media < mediana:
+            forma_distribucion = (
+                "La media es menor que la mediana, lo que puede indicar "
+                "una distribución con sesgo hacia la izquierda."
+            )
+        else:
+            forma_distribucion = (
+                "La media y la mediana son similares, lo que sugiere "
+                "una distribución aproximadamente equilibrada."
+            )
+
+        st.info(
+            f"Para la variable '{variable_interpretar}', la media es "
+            f"{media:.2f}, la mediana es {mediana:.2f} y la desviación "
+            f"estándar es {desviacion:.2f}. {forma_distribucion}"
+        )
+
+
+    # -----------------------------------------------------
+    # ÍTEM 4: ANÁLISIS DE VALORES FALTANTES
+    # -----------------------------------------------------
+    with tab4:
+
+        st.header("Ítem 4: Análisis de valores faltantes")
+
+        st.write(
+            """
+            Este análisis identifica la cantidad y el porcentaje de valores
+            faltantes en cada variable. Esto permite evaluar si se requiere
+            un proceso posterior de limpieza o imputación.
+            """
+        )
+
+        valores_faltantes = df.isnull().sum()
+
+        tabla_faltantes = pd.DataFrame({
+            "Variable": valores_faltantes.index,
+            "Cantidad de faltantes": valores_faltantes.values,
+            "Porcentaje": (
+                valores_faltantes.values / len(df) * 100
+            ).round(2)
+        })
+
+        st.dataframe(
+            tabla_faltantes,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        total_faltantes = int(valores_faltantes.sum())
+        variables_con_faltantes = int((valores_faltantes > 0).sum())
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.metric(
+                "Total de valores faltantes",
+                total_faltantes
+            )
+
+        with col2:
+            st.metric(
+                "Variables con faltantes",
+                variables_con_faltantes
+            )
+
+        if total_faltantes > 0:
+
+            st.subheader("Visualización de valores faltantes")
+
+            datos_grafico = tabla_faltantes[
+                tabla_faltantes["Cantidad de faltantes"] > 0
+            ]
+
+            fig, ax = plt.subplots(figsize=(10, 5))
+
+            sns.barplot(
+                data=datos_grafico,
+                x="Cantidad de faltantes",
+                y="Variable",
+                color="#2E86C1",
+                ax=ax
+            )
+
+            ax.set_title("Valores faltantes por variable")
+            ax.set_xlabel("Cantidad de valores faltantes")
+            ax.set_ylabel("Variable")
+
+            st.pyplot(fig)
+            plt.close(fig)
+
+            st.warning(
+                f"Se encontraron {total_faltantes} valores faltantes "
+                f"distribuidos en {variables_con_faltantes} variables. "
+                "Estas variables deben revisarse antes de realizar "
+                "interpretaciones definitivas."
+            )
+
+        else:
+            st.success(
+                """
+                No se encontraron valores faltantes reales en el dataset.
+                Por ello, no es necesario aplicar eliminación ni imputación
+                y no corresponde generar un gráfico de faltantes.
+                """
+            )
+
+            st.info(
+                """
+                Algunas variables categóricas pueden contener la palabra
+                `unknown`. Esta es una categoría registrada en el archivo
+                y no es reconocida por Pandas como un valor nulo.
+                """
+            )
