@@ -212,7 +212,7 @@ elif opcion == "Análisis EDA":
 
     numericas, categoricas = clasificar_variables(df)
 
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
     "1️⃣ Información general",
     "2️⃣ Clasificación",
     "3️⃣ Estadísticas",
@@ -220,7 +220,9 @@ elif opcion == "Análisis EDA":
     "5️⃣ Distribución numérica",
     "6️⃣ Variables categóricas",
     "7️⃣ Numérico vs categórico",
-    "8️⃣ Categórico vs categórico"
+    "8️⃣ Categórico vs categórico",
+    "9️⃣ Análisis dinámico",
+    "🔟 Hallazgos clave"
 ])
 
     # -----------------------------------------------------
@@ -938,3 +940,268 @@ elif opcion == "Análisis EDA":
             f"'{segunda_categorica} = {combinacion_principal[1]}', con "
             f"{frecuencia_principal:,} registros."
         )
+
+    # -----------------------------------------------------
+    # ÍTEM 9: ANÁLISIS BASADO EN PARÁMETROS
+    # -----------------------------------------------------
+    with tab9:
+
+        st.header("Ítem 9: Análisis basado en parámetros seleccionados")
+
+        st.write(
+            """
+            Este módulo permite al usuario seleccionar columnas y aplicar
+            filtros de manera interactiva para generar un análisis dinámico.
+            """
+        )
+
+        columnas_seleccionadas = st.multiselect(
+            "Seleccione las columnas que desea visualizar:",
+            options=df.columns.tolist(),
+            default=["age", "job", "education", "duration", "y"]
+        )
+
+        variable_filtro = st.selectbox(
+            "Seleccione una variable categórica para filtrar:",
+            categoricas,
+            index=categoricas.index("y") if "y" in categoricas else 0,
+            key="variable_filtro"
+        )
+
+        categorias_disponibles = sorted(
+            df[variable_filtro].dropna().astype(str).unique().tolist()
+        )
+
+        categorias_elegidas = st.multiselect(
+            f"Seleccione los valores de {variable_filtro}:",
+            options=categorias_disponibles,
+            default=categorias_disponibles,
+            key="categorias_filtro"
+        )
+
+        if len(categorias_elegidas) == 0:
+            st.warning("Seleccione al menos una categoría para continuar.")
+
+        elif len(columnas_seleccionadas) == 0:
+            st.warning("Seleccione al menos una columna para visualizar.")
+
+        else:
+            df_filtrado = df[
+                df[variable_filtro].astype(str).isin(categorias_elegidas)
+            ]
+
+            st.success(
+                f"El filtro devuelve {df_filtrado.shape[0]:,} registros "
+                f"y se muestran {len(columnas_seleccionadas)} columnas."
+            )
+
+            st.dataframe(
+                df_filtrado[columnas_seleccionadas].head(100),
+                use_container_width=True
+            )
+
+            numericas_seleccionadas = [
+                columna for columna in columnas_seleccionadas
+                if columna in numericas
+            ]
+
+            if len(numericas_seleccionadas) > 0:
+
+                st.subheader("Resumen de columnas numéricas seleccionadas")
+
+                st.dataframe(
+                    df_filtrado[numericas_seleccionadas]
+                    .describe()
+                    .T
+                    .round(2),
+                    use_container_width=True
+                )
+
+                variable_grafico = st.selectbox(
+                    "Seleccione una variable para el gráfico dinámico:",
+                    numericas_seleccionadas,
+                    key="grafico_dinamico"
+                )
+
+                fig, ax = plt.subplots(figsize=(10, 5))
+
+                sns.histplot(
+                    data=df_filtrado,
+                    x=variable_grafico,
+                    bins=30,
+                    kde=True,
+                    color="#17A589",
+                    ax=ax
+                )
+
+                ax.set_title(
+                    f"Distribución dinámica de {variable_grafico}"
+                )
+                ax.set_xlabel(variable_grafico)
+                ax.set_ylabel("Frecuencia")
+
+                st.pyplot(fig)
+                plt.close(fig)
+
+                st.info(
+                    f"La variable '{variable_grafico}' tiene una media de "
+                    f"{df_filtrado[variable_grafico].mean():.2f} dentro "
+                    f"del conjunto de datos filtrado."
+                )
+
+            else:
+                st.info(
+                    """
+                    No se seleccionaron variables numéricas. Seleccione al
+                    menos una para generar estadísticas y un histograma.
+                    """
+                )
+
+
+    # -----------------------------------------------------
+    # ÍTEM 10: HALLAZGOS CLAVE
+    # -----------------------------------------------------
+    with tab10:
+
+        st.header("Ítem 10: Hallazgos clave")
+
+        st.write(
+            """
+            Esta sección resume los principales resultados obtenidos mediante
+            el análisis exploratorio del dataset Bank Marketing.
+            """
+        )
+
+        if "y" in df.columns:
+
+            total_clientes = len(df)
+            total_si = int((df["y"] == "yes").sum())
+            total_no = int((df["y"] == "no").sum())
+            tasa_respuesta = total_si / total_clientes * 100
+
+            col1, col2, col3, col4 = st.columns(4)
+
+            with col1:
+                st.metric("Clientes analizados", f"{total_clientes:,}")
+
+            with col2:
+                st.metric("Respuesta positiva", f"{total_si:,}")
+
+            with col3:
+                st.metric("Respuesta negativa", f"{total_no:,}")
+
+            with col4:
+                st.metric("Tasa de respuesta positiva", f"{tasa_respuesta:.2f}%")
+
+            st.subheader("Resultado general de la campaña")
+
+            resultados_campana = (
+                df["y"]
+                .value_counts()
+                .rename_axis("Respuesta")
+                .reset_index(name="Cantidad")
+            )
+
+            fig, ax = plt.subplots(figsize=(8, 5))
+
+            sns.barplot(
+                data=resultados_campana,
+                x="Respuesta",
+                y="Cantidad",
+                hue="Respuesta",
+                palette={
+                    "no": "#E74C3C",
+                    "yes": "#2ECC71"
+                },
+                legend=False,
+                ax=ax
+            )
+
+            ax.set_title("Respuesta a la campaña bancaria")
+            ax.set_xlabel("Respuesta")
+            ax.set_ylabel("Cantidad de clientes")
+
+            st.pyplot(fig)
+            plt.close(fig)
+
+            edad_si = df.loc[df["y"] == "yes", "age"].mean()
+            edad_no = df.loc[df["y"] == "no", "age"].mean()
+
+            duracion_si = df.loc[df["y"] == "yes", "duration"].mean()
+            duracion_no = df.loc[df["y"] == "no", "duration"].mean()
+
+            tasa_por_trabajo = (
+                df.assign(
+                    respuesta_positiva=(df["y"] == "yes").astype(int)
+                )
+                .groupby("job")["respuesta_positiva"]
+                .agg(["mean", "count"])
+                .reset_index()
+            )
+
+            tasa_por_trabajo["Tasa positiva (%)"] = (
+                tasa_por_trabajo["mean"] * 100
+            ).round(2)
+
+            tasa_por_trabajo = tasa_por_trabajo.sort_values(
+                "Tasa positiva (%)",
+                ascending=False
+            )
+
+            st.subheader("Tasa de respuesta positiva por ocupación")
+
+            fig, ax = plt.subplots(figsize=(10, 6))
+
+            sns.barplot(
+                data=tasa_por_trabajo,
+                x="Tasa positiva (%)",
+                y="job",
+                color="#3498DB",
+                ax=ax
+            )
+
+            ax.set_title("Respuesta positiva según ocupación")
+            ax.set_xlabel("Tasa de respuesta positiva (%)")
+            ax.set_ylabel("Ocupación")
+
+            st.pyplot(fig)
+            plt.close(fig)
+
+            mejor_trabajo = tasa_por_trabajo.iloc[0]
+
+            st.subheader("Principales insights derivados del EDA")
+
+            st.markdown(
+                f"""
+                1. La campaña obtuvo **{total_si:,} respuestas positivas**,
+                   equivalentes al **{tasa_respuesta:.2f}%** del total.
+
+                2. La mayoría de los registros corresponde a respuestas
+                   negativas: **{total_no:,} clientes**.
+
+                3. La edad promedio de quienes respondieron positivamente fue
+                   de **{edad_si:.2f} años**, frente a **{edad_no:.2f} años**
+                   entre quienes respondieron negativamente.
+
+                4. La duración promedio del contacto fue de
+                   **{duracion_si:.2f} segundos** en las respuestas positivas
+                   y de **{duracion_no:.2f} segundos** en las negativas.
+
+                5. La ocupación con mayor proporción de respuestas positivas
+                   fue **{mejor_trabajo['job']}**, con una tasa de
+                   **{mejor_trabajo['Tasa positiva (%)']:.2f}%**.
+                """
+            )
+
+            st.warning(
+                """
+                Los resultados describen asociaciones observadas en el
+                dataset y no demuestran relaciones de causa y efecto.
+                Además, este proyecto no desarrolla modelos predictivos.
+                """
+            )
+
+        else:
+            st.error(
+                "No se encontró la variable objetivo 'y' en el dataset."
+            )
