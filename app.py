@@ -198,6 +198,171 @@ elif opcion == "Análisis EDA":
         f"Dataset disponible: {df.shape[0]:,} filas y {df.shape[1]} columnas."
     )
 
-    st.info(
-        "En el siguiente paso incorporaremos aquí los 10 ítems obligatorios del análisis."
-    )
+    # Función personalizada para clasificar las variables
+    def clasificar_variables(dataframe):
+        variables_numericas = dataframe.select_dtypes(
+            include=np.number
+        ).columns.tolist()
+
+        variables_categoricas = dataframe.select_dtypes(
+            exclude=np.number
+        ).columns.tolist()
+
+        return variables_numericas, variables_categoricas
+
+    numericas, categoricas = clasificar_variables(df)
+
+    tab1, tab2 = st.tabs([
+        "1️⃣ Información general",
+        "2️⃣ Clasificación de variables"
+    ])
+
+    # -----------------------------------------------------
+    # ÍTEM 1: INFORMACIÓN GENERAL DEL DATASET
+    # -----------------------------------------------------
+    with tab1:
+
+        st.header("Ítem 1: Información general del dataset")
+
+        st.write(
+            """
+            Este análisis permite conocer la estructura del dataset,
+            los tipos de datos de sus variables y la cantidad de valores
+            nulos presentes.
+            """
+        )
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.metric("Filas", f"{df.shape[0]:,}")
+
+        with col2:
+            st.metric("Columnas", df.shape[1])
+
+        with col3:
+            st.metric("Valores nulos", int(df.isnull().sum().sum()))
+
+        st.subheader("Información obtenida con .info()")
+
+        buffer = StringIO()
+        df.info(buf=buffer)
+        informacion = buffer.getvalue()
+
+        st.code(informacion, language="text")
+
+        st.subheader("Tipos de datos")
+
+        tabla_tipos = pd.DataFrame({
+            "Variable": df.columns,
+            "Tipo de dato": df.dtypes.astype(str).values
+        })
+
+        st.dataframe(
+            tabla_tipos,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.subheader("Conteo de valores nulos")
+
+        tabla_nulos = pd.DataFrame({
+            "Variable": df.columns,
+            "Valores nulos": df.isnull().sum().values
+        })
+
+        tabla_nulos["Porcentaje"] = (
+            tabla_nulos["Valores nulos"] / len(df) * 100
+        ).round(2)
+
+        st.dataframe(
+            tabla_nulos,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        if df.isnull().sum().sum() == 0:
+            st.success(
+                "No se identificaron valores nulos en el dataset."
+            )
+        else:
+            st.warning(
+                "El dataset contiene valores nulos que deberán analizarse."
+            )
+
+    # -----------------------------------------------------
+    # ÍTEM 2: CLASIFICACIÓN DE VARIABLES
+    # -----------------------------------------------------
+    with tab2:
+
+        st.header("Ítem 2: Clasificación de variables")
+
+        st.write(
+            """
+            Mediante una función personalizada se clasifican las variables
+            del dataset en numéricas y categóricas, según el tipo de dato
+            reconocido por Pandas.
+            """
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.metric(
+                "Variables numéricas",
+                len(numericas)
+            )
+
+            st.subheader("Lista de variables numéricas")
+
+            tabla_numericas = pd.DataFrame({
+                "N.º": range(1, len(numericas) + 1),
+                "Variable numérica": numericas
+            })
+
+            st.dataframe(
+                tabla_numericas,
+                use_container_width=True,
+                hide_index=True
+            )
+
+        with col2:
+            st.metric(
+                "Variables categóricas",
+                len(categoricas)
+            )
+
+            st.subheader("Lista de variables categóricas")
+
+            tabla_categoricas = pd.DataFrame({
+                "N.º": range(1, len(categoricas) + 1),
+                "Variable categórica": categoricas
+            })
+
+            st.dataframe(
+                tabla_categoricas,
+                use_container_width=True,
+                hide_index=True
+            )
+
+        st.subheader("Resumen de la clasificación")
+
+        resumen_variables = pd.DataFrame({
+            "Clasificación": [
+                "Variables numéricas",
+                "Variables categóricas"
+            ],
+            "Cantidad": [
+                len(numericas),
+                len(categoricas)
+            ]
+        })
+
+        st.bar_chart(
+            resumen_variables.set_index("Clasificación")
+        )
+
+        st.info(
+            f"El dataset contiene {len(numericas)} variables numéricas "
+            f"y {len(categoricas)} variables categóricas."
+        )
