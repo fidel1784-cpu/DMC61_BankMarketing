@@ -1,37 +1,203 @@
 import streamlit as st
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from io import StringIO
 
+
+# ---------------------------------------------------------
+# CONFIGURACIÓN GENERAL
+# ---------------------------------------------------------
 st.set_page_config(
     page_title="Bank Marketing",
     page_icon="🏦",
     layout="wide"
 )
 
-st.title("🏦 Caso de Estudio: Bank Marketing")
-st.subheader("Análisis de campañas de marketing bancario")
 
-st.write(
-    """
-    Esta aplicación tiene como objetivo analizar la información de una campaña
-    de marketing realizada por una entidad bancaria.
-    """
-)
+# ---------------------------------------------------------
+# CLASE PARA TRABAJAR CON EL DATASET
+# ---------------------------------------------------------
+class AnalizadorBankMarketing:
 
-st.divider()
+    def __init__(self, dataframe):
+        self.df = dataframe
 
-st.info("Seleccione una opción en el menú lateral para comenzar.")
+    def obtener_dimensiones(self):
+        filas, columnas = self.df.shape
+        return filas, columnas
 
-st.sidebar.title("Menú principal")
+    def obtener_vista_previa(self, cantidad=5):
+        return self.df.head(cantidad)
+
+    def obtener_info(self):
+        buffer = StringIO()
+        self.df.info(buf=buffer)
+        return buffer.getvalue()
+
+
+# ---------------------------------------------------------
+# FUNCIÓN PARA CARGAR EL ARCHIVO CSV
+# ---------------------------------------------------------
+def cargar_dataset(archivo):
+    try:
+        # Detecta automáticamente si el separador es coma o punto y coma
+        dataframe = pd.read_csv(archivo, sep=None, engine="python")
+        return dataframe, None
+    except Exception as error:
+        return None, str(error)
+
+
+# ---------------------------------------------------------
+# MENÚ LATERAL
+# ---------------------------------------------------------
+st.sidebar.title("🏦 Menú principal")
 
 opcion = st.sidebar.selectbox(
-    "Seleccione una opción:",
+    "Seleccione un módulo:",
     [
-        "Inicio",
-        "Carga de datos",
-        "Análisis exploratorio",
-        "Visualizaciones",
-        "Conclusiones"
+        "Home",
+        "Carga del dataset",
+        "Análisis EDA"
     ]
 )
 
 st.sidebar.divider()
-st.sidebar.write("Elaborado por: Fidel Bringas")
+st.sidebar.write("**Autor:** Fidel Napoleón Bringas Salazar")
+st.sidebar.write("**Año:** 2026")
+
+
+# ---------------------------------------------------------
+# MÓDULO 1: HOME
+# ---------------------------------------------------------
+if opcion == "Home":
+
+    st.title("🏦 Bank Marketing: Análisis Exploratorio de Datos")
+
+    st.subheader("Presentación del proyecto")
+
+    st.write(
+        """
+        Este proyecto presenta una aplicación interactiva desarrollada en
+        Python y Streamlit para realizar el Análisis Exploratorio de Datos
+        del dataset **BankMarketing.csv**.
+        """
+    )
+
+    st.info(
+        """
+        **Objetivo del análisis:** explorar las características de los clientes
+        y los resultados de una campaña de marketing bancario, identificando
+        distribuciones, relaciones entre variables, valores faltantes y
+        hallazgos relevantes mediante estadística descriptiva y visualizaciones.
+        """
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.subheader("👤 Datos del autor")
+        st.write("**Nombre:** Fidel Napoleón Bringas Salazar")
+        st.write("**Curso / Especialización:** Python for Analytics")
+        st.write("**Año:** 2026")
+
+    with col2:
+        st.subheader("🛠️ Tecnologías utilizadas")
+        st.write("- Python")
+        st.write("- Streamlit")
+        st.write("- Pandas y NumPy")
+        st.write("- Matplotlib y Seaborn")
+        st.write("- Programación Orientada a Objetos")
+
+    st.subheader("📊 Descripción del dataset")
+
+    st.write(
+        """
+        Bank Marketing contiene información relacionada con campañas de
+        marketing directo realizadas por una institución bancaria. Incluye
+        características de los clientes, datos de contacto y el resultado
+        de la campaña, representado principalmente por la variable `y`.
+        """
+    )
+
+    st.warning(
+        "Este proyecto realiza análisis exploratorio y no construye modelos predictivos."
+    )
+
+
+# ---------------------------------------------------------
+# MÓDULO 2: CARGA DEL DATASET
+# ---------------------------------------------------------
+elif opcion == "Carga del dataset":
+
+    st.title("📂 Carga del dataset")
+
+    st.write(
+        """
+        Cargue el archivo **BankMarketing.csv** para visualizar sus datos
+        y habilitar el módulo de análisis exploratorio.
+        """
+    )
+
+    archivo = st.file_uploader(
+        "Seleccione el archivo CSV",
+        type=["csv"]
+    )
+
+    if archivo is None:
+        st.warning("Debe cargar el archivo BankMarketing.csv para continuar.")
+
+    else:
+        df, error = cargar_dataset(archivo)
+
+        if error is not None:
+            st.error(f"No se pudo cargar el archivo. Detalle: {error}")
+
+        else:
+            st.session_state["dataset"] = df
+            analizador = AnalizadorBankMarketing(df)
+            filas, columnas = analizador.obtener_dimensiones()
+
+            st.success("El dataset fue cargado correctamente.")
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.metric("Número de filas", f"{filas:,}")
+
+            with col2:
+                st.metric("Número de columnas", columnas)
+
+            st.subheader("Vista previa del dataset")
+            st.dataframe(
+                analizador.obtener_vista_previa(),
+                use_container_width=True
+            )
+
+            st.subheader("Nombres de las columnas")
+            st.write(list(df.columns))
+
+
+# ---------------------------------------------------------
+# MÓDULO 3: ANÁLISIS EDA
+# ---------------------------------------------------------
+elif opcion == "Análisis EDA":
+
+    st.title("📈 Análisis Exploratorio de Datos")
+
+    if "dataset" not in st.session_state:
+        st.warning(
+            "Primero debe ingresar al módulo 'Carga del dataset' y cargar el archivo CSV."
+        )
+        st.stop()
+
+    df = st.session_state["dataset"]
+
+    st.success(
+        f"Dataset disponible: {df.shape[0]:,} filas y {df.shape[1]} columnas."
+    )
+
+    st.info(
+        "En el siguiente paso incorporaremos aquí los 10 ítems obligatorios del análisis."
+    )
