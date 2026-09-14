@@ -212,11 +212,13 @@ elif opcion == "Análisis EDA":
 
     numericas, categoricas = clasificar_variables(df)
 
-    tab1, tab2, tab3, tab4 = st.tabs([
+         tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "1️⃣ Información general",
         "2️⃣ Clasificación",
         "3️⃣ Estadísticas",
-        "4️⃣ Valores faltantes"
+        "4️⃣ Valores faltantes",
+        "5️⃣ Distribución numérica",
+        "6️⃣ Variables categóricas"
     ])
 
     # -----------------------------------------------------
@@ -551,3 +553,191 @@ elif opcion == "Análisis EDA":
                 y no es reconocida por Pandas como un valor nulo.
                 """
             )
+
+    # -----------------------------------------------------
+    # ÍTEM 5: DISTRIBUCIÓN DE VARIABLES NUMÉRICAS
+    # -----------------------------------------------------
+    with tab5:
+
+        st.header("Ítem 5: Distribución de variables numéricas")
+
+        st.write(
+            """
+            Los histogramas permiten observar la frecuencia, concentración,
+            dispersión y posible asimetría de una variable numérica.
+            """
+        )
+
+        variable_numerica = st.selectbox(
+            "Seleccione una variable numérica:",
+            numericas,
+            key="variable_histograma"
+        )
+
+        numero_intervalos = st.slider(
+            "Seleccione el número de intervalos del histograma:",
+            min_value=5,
+            max_value=60,
+            value=30,
+            step=5
+        )
+
+        fig, ax = plt.subplots(figsize=(10, 5))
+
+        sns.histplot(
+            data=df,
+            x=variable_numerica,
+            bins=numero_intervalos,
+            kde=True,
+            color="#2E86C1",
+            ax=ax
+        )
+
+        ax.axvline(
+            df[variable_numerica].mean(),
+            color="red",
+            linestyle="--",
+            label="Media"
+        )
+
+        ax.axvline(
+            df[variable_numerica].median(),
+            color="green",
+            linestyle="--",
+            label="Mediana"
+        )
+
+        ax.set_title(
+            f"Distribución de la variable {variable_numerica}"
+        )
+        ax.set_xlabel(variable_numerica)
+        ax.set_ylabel("Frecuencia")
+        ax.legend()
+
+        st.pyplot(fig)
+        plt.close(fig)
+
+        asimetria = df[variable_numerica].skew()
+
+        if asimetria > 0.5:
+            interpretacion = (
+                "La distribución presenta asimetría positiva; es decir, "
+                "existen algunos valores altos que extienden la distribución "
+                "hacia la derecha."
+            )
+        elif asimetria < -0.5:
+            interpretacion = (
+                "La distribución presenta asimetría negativa; es decir, "
+                "la distribución se extiende hacia los valores menores."
+            )
+        else:
+            interpretacion = (
+                "La distribución es relativamente simétrica, debido a que "
+                "su coeficiente de asimetría se encuentra cercano a cero."
+            )
+
+        st.info(
+            f"La variable '{variable_numerica}' tiene una media de "
+            f"{df[variable_numerica].mean():.2f}, una mediana de "
+            f"{df[variable_numerica].median():.2f} y una asimetría de "
+            f"{asimetria:.2f}. {interpretacion}"
+        )
+
+
+    # -----------------------------------------------------
+    # ÍTEM 6: ANÁLISIS DE VARIABLES CATEGÓRICAS
+    # -----------------------------------------------------
+    with tab6:
+
+        st.header("Ítem 6: Análisis de variables categóricas")
+
+        st.write(
+            """
+            Este análisis muestra el conteo y la proporción de las categorías
+            presentes en una variable seleccionada por el usuario.
+            """
+        )
+
+        variable_categorica = st.selectbox(
+            "Seleccione una variable categórica:",
+            categoricas,
+            key="variable_categorica"
+        )
+
+        conteo_categorias = (
+            df[variable_categorica]
+            .value_counts(dropna=False)
+            .reset_index()
+        )
+
+        conteo_categorias.columns = [
+            "Categoría",
+            "Cantidad"
+        ]
+
+        conteo_categorias["Proporción (%)"] = (
+            conteo_categorias["Cantidad"] / len(df) * 100
+        ).round(2)
+
+        categoria_principal = conteo_categorias.iloc[0]["Categoría"]
+        cantidad_principal = conteo_categorias.iloc[0]["Cantidad"]
+        proporcion_principal = conteo_categorias.iloc[0]["Proporción (%)"]
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.metric(
+                "Número de categorías",
+                df[variable_categorica].nunique(dropna=False)
+            )
+
+        with col2:
+            st.metric(
+                "Categoría más frecuente",
+                str(categoria_principal)
+            )
+
+        with col3:
+            st.metric(
+                "Proporción principal",
+                f"{proporcion_principal:.2f}%"
+            )
+
+        st.subheader("Conteos y proporciones")
+
+        st.dataframe(
+            conteo_categorias,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.subheader("Gráfico de barras")
+
+        # Se muestran como máximo las 15 categorías más frecuentes
+        datos_grafico = conteo_categorias.head(15)
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        sns.barplot(
+            data=datos_grafico,
+            x="Cantidad",
+            y="Categoría",
+            color="#7D3C98",
+            ax=ax
+        )
+
+        ax.set_title(
+            f"Distribución de la variable {variable_categorica}"
+        )
+        ax.set_xlabel("Cantidad de registros")
+        ax.set_ylabel(variable_categorica)
+
+        st.pyplot(fig)
+        plt.close(fig)
+
+        st.info(
+            f"En la variable '{variable_categorica}', la categoría más "
+            f"frecuente es '{categoria_principal}', con "
+            f"{cantidad_principal:,} registros, equivalentes al "
+            f"{proporcion_principal:.2f}% del total."
+        )
