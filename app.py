@@ -212,7 +212,7 @@ elif opcion == "Análisis EDA":
 
     numericas, categoricas = clasificar_variables(df)
 
-         tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "1️⃣ Información general",
         "2️⃣ Clasificación",
         "3️⃣ Estadísticas",
