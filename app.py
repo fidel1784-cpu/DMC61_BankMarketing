@@ -1,32 +1,71 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
+import hashlib
+from io import BytesIO, StringIO
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import seaborn as sns
-from io import StringIO
+import streamlit as st
 
 
-# ---------------------------------------------------------
-# CONFIGURACIÓN GENERAL
-# ---------------------------------------------------------
+# =========================================================
+# CONFIGURACIÓN Y PERSONALIZACIÓN
+# =========================================================
+AUTOR = "Fidel Napoleón Bringas Salazar"
+CURSO = "Python for Analytics"
+ANIO = 2026
+
+COLUMNAS_ESPERADAS = [
+    "age", "job", "marital", "education", "default",
+    "housing", "loan", "contact", "month", "day_of_week",
+    "duration", "campaign", "pdays", "previous", "poutcome",
+    "emp.var.rate", "cons.price.idx", "cons.conf.idx",
+    "euribor3m", "nr.employed", "y"
+]
+
+NUMERICAS_ESPERADAS = [
+    "age", "duration", "campaign", "pdays", "previous",
+    "emp.var.rate", "cons.price.idx", "cons.conf.idx",
+    "euribor3m", "nr.employed"
+]
+
 st.set_page_config(
     page_title="Bank Marketing",
     page_icon="🏦",
     layout="wide"
 )
 
+sns.set_theme(style="whitegrid")
 
-# ---------------------------------------------------------
-# CLASE PARA TRABAJAR CON EL DATASET
-# ---------------------------------------------------------
+
+# =========================================================
+# FUNCIÓN PERSONALIZADA
+# =========================================================
+def clasificar_variables(dataframe):
+    """Clasifica según los tipos reconocidos por Pandas."""
+    numericas = dataframe.select_dtypes(
+        include=np.number
+    ).columns.tolist()
+
+    categoricas = [
+        columna for columna in dataframe.columns
+        if columna not in numericas
+    ]
+
+    return numericas, categoricas
+
+
+# =========================================================
+# PROGRAMACIÓN ORIENTADA A OBJETOS
+# =========================================================
 class AnalizadorBankMarketing:
+    """Encapsula clasificación, estadísticas y visualizaciones."""
 
     def __init__(self, dataframe):
-        self.df = dataframe
+        self.df = dataframe.copy()
 
     def obtener_dimensiones(self):
-        filas, columnas = self.df.shape
-        return filas, columnas
+        return self.df.shape
 
     def obtener_vista_previa(self, cantidad=5):
         return self.df.head(cantidad)
@@ -36,1172 +75,1234 @@ class AnalizadorBankMarketing:
         self.df.info(buf=buffer)
         return buffer.getvalue()
 
+    def clasificar_variables(self):
+        return clasificar_variables(self.df)
 
-# ---------------------------------------------------------
-# FUNCIÓN PARA CARGAR EL ARCHIVO CSV
-# ---------------------------------------------------------
-def cargar_dataset(archivo):
-    try:
-        # Detecta automáticamente si el separador es coma o punto y coma
-        dataframe = pd.read_csv(archivo, sep=None, engine="python")
-        return dataframe, None
-    except Exception as error:
-        return None, str(error)
-
-
-# ---------------------------------------------------------
-# MENÚ LATERAL
-# ---------------------------------------------------------
-st.sidebar.title("🏦 Menú principal")
-
-opcion = st.sidebar.selectbox(
-    "Seleccione un módulo:",
-    [
-        "Home",
-        "Carga del dataset",
-        "Análisis EDA"
-    ]
-)
-
-st.sidebar.divider()
-st.sidebar.write("**Autor:** Fidel Napoleón Bringas Salazar")
-st.sidebar.write("**Año:** 2026")
-
-
-# ---------------------------------------------------------
-# MÓDULO 1: HOME
-# ---------------------------------------------------------
-if opcion == "Home":
-
-    st.title("🏦 Bank Marketing: Análisis Exploratorio de Datos")
-
-    st.subheader("Presentación del proyecto")
-
-    st.write(
-        """
-        Este proyecto presenta una aplicación interactiva desarrollada en
-        Python y Streamlit para realizar el Análisis Exploratorio de Datos
-        del dataset **BankMarketing.csv**.
-        """
-    )
-
-    st.info(
-        """
-        **Objetivo del análisis:** explorar las características de los clientes
-        y los resultados de una campaña de marketing bancario, identificando
-        distribuciones, relaciones entre variables, valores faltantes y
-        hallazgos relevantes mediante estadística descriptiva y visualizaciones.
-        """
-    )
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("👤 Datos del autor")
-        st.write("**Nombre:** Fidel Napoleón Bringas Salazar")
-        st.write("**Curso / Especialización:** Python for Analytics")
-        st.write("**Año:** 2026")
-
-    with col2:
-        st.subheader("🛠️ Tecnologías utilizadas")
-        st.write("- Python")
-        st.write("- Streamlit")
-        st.write("- Pandas y NumPy")
-        st.write("- Matplotlib y Seaborn")
-        st.write("- Programación Orientada a Objetos")
-
-    st.subheader("📊 Descripción del dataset")
-
-    st.write(
-        """
-        Bank Marketing contiene información relacionada con campañas de
-        marketing directo realizadas por una institución bancaria. Incluye
-        características de los clientes, datos de contacto y el resultado
-        de la campaña, representado principalmente por la variable `y`.
-        """
-    )
-
-    st.warning(
-        "Este proyecto realiza análisis exploratorio y no construye modelos predictivos."
-    )
-
-
-# ---------------------------------------------------------
-# MÓDULO 2: CARGA DEL DATASET
-# ---------------------------------------------------------
-elif opcion == "Carga del dataset":
-
-    st.title("📂 Carga del dataset")
-
-    st.write(
-        """
-        Cargue el archivo **BankMarketing.csv** para visualizar sus datos
-        y habilitar el módulo de análisis exploratorio.
-        """
-    )
-
-    archivo = st.file_uploader(
-        "Seleccione el archivo CSV",
-        type=["csv"]
-    )
-
-    if archivo is None:
-        st.warning("Debe cargar el archivo BankMarketing.csv para continuar.")
-
-    else:
-        df, error = cargar_dataset(archivo)
-
-        if error is not None:
-            st.error(f"No se pudo cargar el archivo. Detalle: {error}")
-
-        else:
-            st.session_state["dataset"] = df
-            analizador = AnalizadorBankMarketing(df)
-            filas, columnas = analizador.obtener_dimensiones()
-
-            st.success("El dataset fue cargado correctamente.")
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-                st.metric("Número de filas", f"{filas:,}")
-
-            with col2:
-                st.metric("Número de columnas", columnas)
-
-            st.subheader("Vista previa del dataset")
-            st.dataframe(
-                analizador.obtener_vista_previa(),
-                use_container_width=True
-            )
-
-            st.subheader("Nombres de las columnas")
-            st.write(list(df.columns))
-
-
-# ---------------------------------------------------------
-# MÓDULO 3: ANÁLISIS EDA
-# ---------------------------------------------------------
-elif opcion == "Análisis EDA":
-
-    st.title("📈 Análisis Exploratorio de Datos")
-
-    if "dataset" not in st.session_state:
-        st.warning(
-            "Primero debe ingresar al módulo 'Carga del dataset' y cargar el archivo CSV."
+    def valores_numericos(self, variable):
+        valores = pd.to_numeric(
+            self.df[variable], errors="coerce"
         )
-        st.stop()
+        return valores.replace(
+            [np.inf, -np.inf], np.nan
+        ).dropna()
 
-    df = st.session_state["dataset"]
+    def obtener_modas(self, variable):
+        valores = self.df[variable].dropna()
 
-    st.success(
-        f"Dataset disponible: {df.shape[0]:,} filas y {df.shape[1]} columnas."
-    )
+        if valores.empty:
+            return []
 
-    # Función personalizada para clasificar las variables
-    def clasificar_variables(dataframe):
-        variables_numericas = dataframe.select_dtypes(
-            include=np.number
-        ).columns.tolist()
+        frecuencias = valores.value_counts()
 
-        variables_categoricas = dataframe.select_dtypes(
-            exclude=np.number
-        ).columns.tolist()
+        # Si ningún valor se repite, no hay una moda informativa.
+        if frecuencias.max() <= 1:
+            return []
 
-        return variables_numericas, variables_categoricas
+        return frecuencias[
+            frecuencias == frecuencias.max()
+        ].index.tolist()
 
-    numericas, categoricas = clasificar_variables(df)
+    def resumen_variable(self, variable):
+        valores = self.valores_numericos(variable)
 
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
-    "1️⃣ Información general",
-    "2️⃣ Clasificación",
-    "3️⃣ Estadísticas",
-    "4️⃣ Valores faltantes",
-    "5️⃣ Distribución numérica",
-    "6️⃣ Variables categóricas",
-    "7️⃣ Numérico vs categórico",
-    "8️⃣ Categórico vs categórico",
-    "9️⃣ Análisis dinámico",
-    "🔟 Hallazgos clave"
-])
+        if valores.empty:
+            return None
 
-    # -----------------------------------------------------
-    # ÍTEM 1: INFORMACIÓN GENERAL DEL DATASET
-    # -----------------------------------------------------
-    with tab1:
+        arreglo = valores.to_numpy(dtype=float)
 
-        st.header("Ítem 1: Información general del dataset")
+        return {
+            "cantidad": len(arreglo),
+            "media": float(np.mean(arreglo)),
+            "mediana": float(np.median(arreglo)),
+            "desviacion": (
+                float(np.std(arreglo, ddof=1))
+                if len(arreglo) > 1 else np.nan
+            ),
+            "modas": self.obtener_modas(variable)
+        }
 
-        st.write(
-            """
-            Este análisis permite conocer la estructura del dataset,
-            los tipos de datos de sus variables y la cantidad de valores
-            nulos presentes.
-            """
-        )
+    def estadisticas_descriptivas(self, columnas):
+        if not columnas:
+            return pd.DataFrame()
 
-        col1, col2, col3 = st.columns(3)
+        resumen = self.df[columnas].describe().T
+        resumen["variance"] = self.df[columnas].var(ddof=1)
 
-        with col1:
-            st.metric("Filas", f"{df.shape[0]:,}")
+        resumen["Moda(s)"] = [
+            ", ".join(str(valor) for valor in self.obtener_modas(c))
+            or "Sin moda informativa"
+            for c in resumen.index
+        ]
 
-        with col2:
-            st.metric("Columnas", df.shape[1])
-
-        with col3:
-            st.metric("Valores nulos", int(df.isnull().sum().sum()))
-
-        st.subheader("Información obtenida con .info()")
-
-        buffer = StringIO()
-        df.info(buf=buffer)
-        informacion = buffer.getvalue()
-
-        st.code(informacion, language="text")
-
-        st.subheader("Tipos de datos")
-
-        tabla_tipos = pd.DataFrame({
-            "Variable": df.columns,
-            "Tipo de dato": df.dtypes.astype(str).values
-        })
-
-        st.dataframe(
-            tabla_tipos,
-            use_container_width=True,
-            hide_index=True
-        )
-
-        st.subheader("Conteo de valores nulos")
-
-        tabla_nulos = pd.DataFrame({
-            "Variable": df.columns,
-            "Valores nulos": df.isnull().sum().values
-        })
-
-        tabla_nulos["Porcentaje"] = (
-            tabla_nulos["Valores nulos"] / len(df) * 100
-        ).round(2)
-
-        st.dataframe(
-            tabla_nulos,
-            use_container_width=True,
-            hide_index=True
-        )
-
-        if df.isnull().sum().sum() == 0:
-            st.success(
-                "No se identificaron valores nulos en el dataset."
-            )
-        else:
-            st.warning(
-                "El dataset contiene valores nulos que deberán analizarse."
-            )
-
-    # -----------------------------------------------------
-    # ÍTEM 2: CLASIFICACIÓN DE VARIABLES
-    # -----------------------------------------------------
-    with tab2:
-
-        st.header("Ítem 2: Clasificación de variables")
-
-        st.write(
-            """
-            Mediante una función personalizada se clasifican las variables
-            del dataset en numéricas y categóricas, según el tipo de dato
-            reconocido por Pandas.
-            """
-        )
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.metric(
-                "Variables numéricas",
-                len(numericas)
-            )
-
-            st.subheader("Lista de variables numéricas")
-
-            tabla_numericas = pd.DataFrame({
-                "N.º": range(1, len(numericas) + 1),
-                "Variable numérica": numericas
-            })
-
-            st.dataframe(
-                tabla_numericas,
-                use_container_width=True,
-                hide_index=True
-            )
-
-        with col2:
-            st.metric(
-                "Variables categóricas",
-                len(categoricas)
-            )
-
-            st.subheader("Lista de variables categóricas")
-
-            tabla_categoricas = pd.DataFrame({
-                "N.º": range(1, len(categoricas) + 1),
-                "Variable categórica": categoricas
-            })
-
-            st.dataframe(
-                tabla_categoricas,
-                use_container_width=True,
-                hide_index=True
-            )
-
-        st.subheader("Resumen de la clasificación")
-
-        resumen_variables = pd.DataFrame({
-            "Clasificación": [
-                "Variables numéricas",
-                "Variables categóricas"
-            ],
-            "Cantidad": [
-                len(numericas),
-                len(categoricas)
-            ]
-        })
-
-        st.bar_chart(
-            resumen_variables.set_index("Clasificación")
-        )
-
-        st.info(
-            f"El dataset contiene {len(numericas)} variables numéricas "
-            f"y {len(categoricas)} variables categóricas."
-        )
-
-    # -----------------------------------------------------
-    # ÍTEM 3: ESTADÍSTICAS DESCRIPTIVAS
-    # -----------------------------------------------------
-    with tab3:
-
-        st.header("Ítem 3: Estadísticas descriptivas")
-
-        st.write(
-            """
-            Las estadísticas descriptivas permiten resumir el comportamiento
-            de las variables numéricas mediante medidas de tendencia central
-            y dispersión.
-            """
-        )
-
-        estadisticas = df[numericas].describe().T
-
-        estadisticas["median"] = df[numericas].median()
-        estadisticas["variance"] = df[numericas].var()
-
-        estadisticas = estadisticas.rename(columns={
-            "count": "Cantidad",
+        return resumen.rename(columns={
+            "count": "Cantidad válida",
             "mean": "Media",
             "std": "Desviación estándar",
             "min": "Mínimo",
             "25%": "Percentil 25",
-            "50%": "Percentil 50",
+            "50%": "Mediana",
             "75%": "Percentil 75",
             "max": "Máximo",
-            "median": "Mediana",
             "variance": "Varianza"
         })
 
-        st.subheader("Resumen estadístico de variables numéricas")
-
-        st.dataframe(
-            estadisticas.round(2),
-            use_container_width=True
+    def tabla_faltantes(self):
+        total = len(self.df)
+        nulos = self.df.isna().sum()
+        desconocidos = pd.Series(
+            0, index=self.df.columns, dtype="int64"
         )
 
-        st.subheader("Interpretación de medias, medianas y dispersión")
+        _, categoricas = self.clasificar_variables()
 
-        variable_interpretar = st.selectbox(
-            "Seleccione una variable numérica:",
-            numericas,
-            key="variable_estadisticas"
-        )
-
-        media = np.mean(df[variable_interpretar])
-        mediana = np.median(df[variable_interpretar])
-        desviacion = np.std(df[variable_interpretar])
-
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            st.metric("Media", f"{media:.2f}")
-
-        with col2:
-            st.metric("Mediana", f"{mediana:.2f}")
-
-        with col3:
-            st.metric("Desviación estándar", f"{desviacion:.2f}")
-
-        if media > mediana:
-            forma_distribucion = (
-                "La media es mayor que la mediana, lo que puede indicar "
-                "una distribución con valores altos o sesgo hacia la derecha."
-            )
-        elif media < mediana:
-            forma_distribucion = (
-                "La media es menor que la mediana, lo que puede indicar "
-                "una distribución con sesgo hacia la izquierda."
-            )
-        else:
-            forma_distribucion = (
-                "La media y la mediana son similares, lo que sugiere "
-                "una distribución aproximadamente equilibrada."
+        for columna in categoricas:
+            desconocidos[columna] = int(
+                self.df[columna]
+                .astype("string")
+                .str.strip()
+                .str.lower()
+                .eq("unknown")
+                .fillna(False)
+                .sum()
             )
 
-        st.info(
-            f"Para la variable '{variable_interpretar}', la media es "
-            f"{media:.2f}, la mediana es {mediana:.2f} y la desviación "
-            f"estándar es {desviacion:.2f}. {forma_distribucion}"
-        )
-
-
-    # -----------------------------------------------------
-    # ÍTEM 4: ANÁLISIS DE VALORES FALTANTES
-    # -----------------------------------------------------
-    with tab4:
-
-        st.header("Ítem 4: Análisis de valores faltantes")
-
-        st.write(
-            """
-            Este análisis identifica la cantidad y el porcentaje de valores
-            faltantes en cada variable. Esto permite evaluar si se requiere
-            un proceso posterior de limpieza o imputación.
-            """
-        )
-
-        valores_faltantes = df.isnull().sum()
-
-        tabla_faltantes = pd.DataFrame({
-            "Variable": valores_faltantes.index,
-            "Cantidad de faltantes": valores_faltantes.values,
-            "Porcentaje": (
-                valores_faltantes.values / len(df) * 100
+        return pd.DataFrame({
+            "Variable": self.df.columns,
+            "Nulos": nulos.values,
+            "Nulos (%)": (
+                nulos.values / total * 100
+            ).round(2),
+            "Unknown": desconocidos.values,
+            "Unknown (%)": (
+                desconocidos.values / total * 100
             ).round(2)
         })
 
-        st.dataframe(
-            tabla_faltantes,
-            use_container_width=True,
-            hide_index=True
+    def conteos_categoricos(self, variable):
+        valores = (
+            self.df[variable]
+            .astype("string")
+            .fillna("(Nulo)")
         )
 
-        total_faltantes = int(valores_faltantes.sum())
-        variables_con_faltantes = int((valores_faltantes > 0).sum())
+        tabla = valores.value_counts().rename_axis(
+            "Categoría"
+        ).reset_index(name="Cantidad")
 
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.metric(
-                "Total de valores faltantes",
-                total_faltantes
-            )
-
-        with col2:
-            st.metric(
-                "Variables con faltantes",
-                variables_con_faltantes
-            )
-
-        if total_faltantes > 0:
-
-            st.subheader("Visualización de valores faltantes")
-
-            datos_grafico = tabla_faltantes[
-                tabla_faltantes["Cantidad de faltantes"] > 0
-            ]
-
-            fig, ax = plt.subplots(figsize=(10, 5))
-
-            sns.barplot(
-                data=datos_grafico,
-                x="Cantidad de faltantes",
-                y="Variable",
-                color="#2E86C1",
-                ax=ax
-            )
-
-            ax.set_title("Valores faltantes por variable")
-            ax.set_xlabel("Cantidad de valores faltantes")
-            ax.set_ylabel("Variable")
-
-            st.pyplot(fig)
-            plt.close(fig)
-
-            st.warning(
-                f"Se encontraron {total_faltantes} valores faltantes "
-                f"distribuidos en {variables_con_faltantes} variables. "
-                "Estas variables deben revisarse antes de realizar "
-                "interpretaciones definitivas."
-            )
-
-        else:
-            st.success(
-                """
-                No se encontraron valores faltantes reales en el dataset.
-                Por ello, no es necesario aplicar eliminación ni imputación
-                y no corresponde generar un gráfico de faltantes.
-                """
-            )
-
-            st.info(
-                """
-                Algunas variables categóricas pueden contener la palabra
-                `unknown`. Esta es una categoría registrada en el archivo
-                y no es reconocida por Pandas como un valor nulo.
-                """
-            )
-
-    # -----------------------------------------------------
-    # ÍTEM 5: DISTRIBUCIÓN DE VARIABLES NUMÉRICAS
-    # -----------------------------------------------------
-    with tab5:
-
-        st.header("Ítem 5: Distribución de variables numéricas")
-
-        st.write(
-            """
-            Los histogramas permiten observar la frecuencia, concentración,
-            dispersión y posible asimetría de una variable numérica.
-            """
+        tabla["Proporción (%)"] = (
+            tabla["Cantidad"] / len(valores) * 100
         )
 
-        variable_numerica = st.selectbox(
-            "Seleccione una variable numérica:",
-            numericas,
-            key="variable_histograma"
+        return tabla
+
+    def comparar_grupos(self, numerica, categorica):
+        return (
+            self.df.groupby(
+                categorica, dropna=False, observed=True
+            )[numerica]
+            .agg(["count", "mean", "median", "std"])
+            .rename(columns={
+                "count": "Cantidad válida",
+                "mean": "Media",
+                "median": "Mediana",
+                "std": "Desviación estándar"
+            })
         )
 
-        numero_intervalos = st.slider(
-            "Seleccione el número de intervalos del histograma:",
-            min_value=5,
-            max_value=60,
-            value=30,
-            step=5
-        )
+    def crear_histograma(
+        self, variable, intervalos=30, mostrar_kde=True
+    ):
+        valores = self.valores_numericos(variable)
+        fig, ax = plt.subplots(figsize=(9, 4))
 
-        fig, ax = plt.subplots(figsize=(10, 5))
+        if valores.empty:
+            ax.text(
+                0.5, 0.5, "Sin datos numéricos válidos",
+                ha="center", va="center", transform=ax.transAxes
+            )
+            return fig
 
         sns.histplot(
-            data=df,
-            x=variable_numerica,
-            bins=numero_intervalos,
-            kde=True,
+            x=valores,
+            bins=intervalos,
+            kde=(
+                mostrar_kde
+                and len(valores) > 2
+                and valores.nunique() > 1
+            ),
             color="#2E86C1",
             ax=ax
         )
 
         ax.axvline(
-            df[variable_numerica].mean(),
-            color="red",
-            linestyle="--",
-            label="Media"
+            valores.mean(), color="red",
+            linestyle="--", label="Media"
         )
-
         ax.axvline(
-            df[variable_numerica].median(),
-            color="green",
-            linestyle="--",
-            label="Mediana"
+            valores.median(), color="green",
+            linestyle="--", label="Mediana"
         )
 
-        ax.set_title(
-            f"Distribución de la variable {variable_numerica}"
-        )
-        ax.set_xlabel(variable_numerica)
+        ax.set_title(f"Distribución de {variable}")
+        ax.set_xlabel(variable)
         ax.set_ylabel("Frecuencia")
         ax.legend()
+        fig.tight_layout()
 
-        st.pyplot(fig)
-        plt.close(fig)
+        return fig
 
-        asimetria = df[variable_numerica].skew()
+    def crear_barras(
+        self, tabla, x, y, titulo, color="#7D3C98"
+    ):
+        fig, ax = plt.subplots(figsize=(9, 5))
+        ax.barh(
+            tabla[y].astype(str),
+            tabla[x],
+            color=color
+        )
+        ax.invert_yaxis()
+        ax.set_title(titulo)
+        ax.set_xlabel(x)
+        ax.set_ylabel(y)
+        fig.tight_layout()
+        return fig
 
-        if asimetria > 0.5:
-            interpretacion = (
-                "La distribución presenta asimetría positiva; es decir, "
-                "existen algunos valores altos que extienden la distribución "
-                "hacia la derecha."
-            )
-        elif asimetria < -0.5:
-            interpretacion = (
-                "La distribución presenta asimetría negativa; es decir, "
-                "la distribución se extiende hacia los valores menores."
+    def crear_boxplot(self, numerica, categorica):
+        datos = self.df[[numerica, categorica]].copy()
+        datos[categorica] = (
+            datos[categorica]
+            .astype("string")
+            .fillna("(Nulo)")
+        )
+        datos = datos.dropna(subset=[numerica])
+
+        fig, ax = plt.subplots(figsize=(10, 5))
+
+        if datos.empty:
+            ax.text(
+                0.5, 0.5, "Sin datos válidos",
+                ha="center", va="center", transform=ax.transAxes
             )
         else:
-            interpretacion = (
-                "La distribución es relativamente simétrica, debido a que "
-                "su coeficiente de asimetría se encuentra cercano a cero."
+            sns.boxplot(
+                data=datos,
+                x=categorica,
+                y=numerica,
+                color="#5DADE2",
+                ax=ax
             )
 
-        st.info(
-            f"La variable '{variable_numerica}' tiene una media de "
-            f"{df[variable_numerica].mean():.2f}, una mediana de "
-            f"{df[variable_numerica].median():.2f} y una asimetría de "
-            f"{asimetria:.2f}. {interpretacion}"
-        )
-
-
-    # -----------------------------------------------------
-    # ÍTEM 6: ANÁLISIS DE VARIABLES CATEGÓRICAS
-    # -----------------------------------------------------
-    with tab6:
-
-        st.header("Ítem 6: Análisis de variables categóricas")
-
-        st.write(
-            """
-            Este análisis muestra el conteo y la proporción de las categorías
-            presentes en una variable seleccionada por el usuario.
-            """
-        )
-
-        variable_categorica = st.selectbox(
-            "Seleccione una variable categórica:",
-            categoricas,
-            key="variable_categorica"
-        )
-
-        conteo_categorias = (
-            df[variable_categorica]
-            .value_counts(dropna=False)
-            .reset_index()
-        )
-
-        conteo_categorias.columns = [
-            "Categoría",
-            "Cantidad"
-        ]
-
-        conteo_categorias["Proporción (%)"] = (
-            conteo_categorias["Cantidad"] / len(df) * 100
-        ).round(2)
-
-        categoria_principal = conteo_categorias.iloc[0]["Categoría"]
-        cantidad_principal = conteo_categorias.iloc[0]["Cantidad"]
-        proporcion_principal = conteo_categorias.iloc[0]["Proporción (%)"]
-
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            st.metric(
-                "Número de categorías",
-                df[variable_categorica].nunique(dropna=False)
-            )
-
-        with col2:
-            st.metric(
-                "Categoría más frecuente",
-                str(categoria_principal)
-            )
-
-        with col3:
-            st.metric(
-                "Proporción principal",
-                f"{proporcion_principal:.2f}%"
-            )
-
-        st.subheader("Conteos y proporciones")
-
-        st.dataframe(
-            conteo_categorias,
-            use_container_width=True,
-            hide_index=True
-        )
-
-        st.subheader("Gráfico de barras")
-
-        # Se muestran como máximo las 15 categorías más frecuentes
-        datos_grafico = conteo_categorias.head(15)
-
-        fig, ax = plt.subplots(figsize=(10, 6))
-
-        sns.barplot(
-            data=datos_grafico,
-            x="Cantidad",
-            y="Categoría",
-            color="#7D3C98",
-            ax=ax
-        )
-
-        ax.set_title(
-            f"Distribución de la variable {variable_categorica}"
-        )
-        ax.set_xlabel("Cantidad de registros")
-        ax.set_ylabel(variable_categorica)
-
-        st.pyplot(fig)
-        plt.close(fig)
-
-        st.info(
-            f"En la variable '{variable_categorica}', la categoría más "
-            f"frecuente es '{categoria_principal}', con "
-            f"{cantidad_principal:,} registros, equivalentes al "
-            f"{proporcion_principal:.2f}% del total."
-        )
-    # -----------------------------------------------------
-    # ÍTEM 7: ANÁLISIS BIVARIADO NUMÉRICO VS CATEGÓRICO
-    # -----------------------------------------------------
-    with tab7:
-
-        st.header("Ítem 7: Análisis bivariado — numérico vs categórico")
-
-        st.write(
-            """
-            Este análisis compara la distribución de una variable numérica
-            entre los diferentes grupos de una variable categórica.
-            """
-        )
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            variable_num_bivariada = st.selectbox(
-                "Seleccione la variable numérica:",
-                numericas,
-                index=numericas.index("age") if "age" in numericas else 0,
-                key="numerica_bivariada"
-            )
-
-        with col2:
-            indice_y = categoricas.index("y") if "y" in categoricas else 0
-
-            variable_cat_bivariada = st.selectbox(
-                "Seleccione la variable categórica:",
-                categoricas,
-                index=indice_y,
-                key="categorica_bivariada"
-            )
-
-        resumen_bivariado = (
-            df.groupby(variable_cat_bivariada)[variable_num_bivariada]
-            .agg(["count", "mean", "median", "std"])
-            .round(2)
-            .reset_index()
-        )
-
-        resumen_bivariado.columns = [
-            variable_cat_bivariada,
-            "Cantidad",
-            "Media",
-            "Mediana",
-            "Desviación estándar"
-        ]
-
-        st.subheader("Resumen por categoría")
-
-        st.dataframe(
-            resumen_bivariado,
-            use_container_width=True,
-            hide_index=True
-        )
-
-        st.subheader("Comparación mediante diagrama de cajas")
-
-        fig, ax = plt.subplots(figsize=(11, 6))
-
-        sns.boxplot(
-            data=df,
-            x=variable_cat_bivariada,
-            y=variable_num_bivariada,
-            color="#5DADE2",
-            ax=ax
-        )
-
-        ax.set_title(
-            f"{variable_num_bivariada} según {variable_cat_bivariada}"
-        )
-        ax.set_xlabel(variable_cat_bivariada)
-        ax.set_ylabel(variable_num_bivariada)
+        ax.set_title(f"{numerica} según {categorica}")
         ax.tick_params(axis="x", rotation=45)
+        fig.tight_layout()
+        return fig
 
-        st.pyplot(fig)
-        plt.close(fig)
+    def crear_mapa_calor(self, tabla, titulo):
+        ancho = min(15, max(7, tabla.shape[1] * 0.8))
+        alto = min(12, max(4, tabla.shape[0] * 0.45))
 
-        categoria_media_mayor = resumen_bivariado.loc[
-            resumen_bivariado["Media"].idxmax()
-        ]
-
-        categoria_media_menor = resumen_bivariado.loc[
-            resumen_bivariado["Media"].idxmin()
-        ]
-
-        st.info(
-            f"La categoría '{categoria_media_mayor[variable_cat_bivariada]}' "
-            f"presenta la mayor media de {variable_num_bivariada}, con "
-            f"{categoria_media_mayor['Media']:.2f}. La categoría "
-            f"'{categoria_media_menor[variable_cat_bivariada]}' presenta "
-            f"la menor media, con {categoria_media_menor['Media']:.2f}."
-        )
-
-
-    # -----------------------------------------------------
-    # ÍTEM 8: ANÁLISIS BIVARIADO CATEGÓRICO VS CATEGÓRICO
-    # -----------------------------------------------------
-    with tab8:
-
-        st.header("Ítem 8: Análisis bivariado — categórico vs categórico")
-
-        st.write(
-            """
-            La tabla de contingencia permite comparar las frecuencias y
-            proporciones existentes entre dos variables categóricas.
-            """
-        )
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            primera_categorica = st.selectbox(
-                "Seleccione la primera variable:",
-                categoricas,
-                index=categoricas.index("education")
-                if "education" in categoricas else 0,
-                key="primera_categorica"
-            )
-
-        opciones_segunda = [
-            variable for variable in categoricas
-            if variable != primera_categorica
-        ]
-
-        with col2:
-            indice_segunda = (
-                opciones_segunda.index("y")
-                if "y" in opciones_segunda else 0
-            )
-
-            segunda_categorica = st.selectbox(
-                "Seleccione la segunda variable:",
-                opciones_segunda,
-                index=indice_segunda,
-                key="segunda_categorica"
-            )
-
-        tabla_contingencia = pd.crosstab(
-            df[primera_categorica],
-            df[segunda_categorica]
-        )
-
-        tabla_porcentajes = pd.crosstab(
-            df[primera_categorica],
-            df[segunda_categorica],
-            normalize="index"
-        ) * 100
-
-        st.subheader("Tabla de frecuencias")
-
-        st.dataframe(
-            tabla_contingencia,
-            use_container_width=True
-        )
-
-        st.subheader("Proporciones por fila (%)")
-
-        st.dataframe(
-            tabla_porcentajes.round(2),
-            use_container_width=True
-        )
-
-        st.subheader("Mapa de calor de proporciones")
-
-        fig, ax = plt.subplots(figsize=(11, 6))
+        fig, ax = plt.subplots(figsize=(ancho, alto))
 
         sns.heatmap(
-            tabla_porcentajes,
+            tabla,
             annot=True,
             fmt=".1f",
             cmap="Blues",
+            vmin=0,
+            vmax=100,
             linewidths=0.5,
+            cbar_kws={"label": "Porcentaje por fila"},
             ax=ax
         )
 
-        ax.set_title(
-            f"Relación entre {primera_categorica} y {segunda_categorica}"
-        )
-        ax.set_xlabel(segunda_categorica)
-        ax.set_ylabel(primera_categorica)
+        ax.set_title(titulo)
+        fig.tight_layout()
+        return fig
 
-        st.pyplot(fig)
-        plt.close(fig)
 
-        combinacion_principal = tabla_contingencia.stack().idxmax()
-        frecuencia_principal = int(tabla_contingencia.stack().max())
+# =========================================================
+# FUNCIONES DE APOYO
+# =========================================================
+def mostrar_figura(figura):
+    st.pyplot(figura)
+    plt.close(figura)
 
-        st.info(
-            f"La combinación más frecuente corresponde a "
-            f"'{primera_categorica} = {combinacion_principal[0]}' y "
-            f"'{segunda_categorica} = {combinacion_principal[1]}', con "
-            f"{frecuencia_principal:,} registros."
-        )
 
-    # -----------------------------------------------------
-    # ÍTEM 9: ANÁLISIS BASADO EN PARÁMETROS
-    # -----------------------------------------------------
-    with tab9:
+def cargar_dataset(contenido):
+    """Lee y valida sin imputar datos ni eliminar filas."""
+    dataframe = None
 
-        st.header("Ítem 9: Análisis basado en parámetros seleccionados")
+    for codificacion in ("utf-8-sig", "cp1252"):
+        try:
+            dataframe = pd.read_csv(
+                BytesIO(contenido),
+                sep=None,
+                engine="python",
+                encoding=codificacion
+            )
+            break
+        except UnicodeDecodeError:
+            continue
 
-        st.write(
-            """
-            Este módulo permite al usuario seleccionar columnas y aplicar
-            filtros de manera interactiva para generar un análisis dinámico.
-            """
-        )
+    if dataframe is None:
+        raise ValueError("No se pudo interpretar la codificación.")
 
-        columnas_seleccionadas = st.multiselect(
-            "Seleccione las columnas que desea visualizar:",
-            options=df.columns.tolist(),
-            default=["age", "job", "education", "duration", "y"]
-        )
+    if dataframe.empty:
+        raise ValueError("El CSV no contiene filas de datos.")
 
-        variable_filtro = st.selectbox(
-            "Seleccione una variable categórica para filtrar:",
-            categoricas,
-            index=categoricas.index("y") if "y" in categoricas else 0,
-            key="variable_filtro"
-        )
+    dataframe.columns = dataframe.columns.astype(str).str.strip()
 
-        categorias_disponibles = sorted(
-            df[variable_filtro].dropna().astype(str).unique().tolist()
-        )
+    if dataframe.columns.duplicated().any():
+        raise ValueError("Existen nombres de columnas duplicados.")
 
-        categorias_elegidas = st.multiselect(
-            f"Seleccione los valores de {variable_filtro}:",
-            options=categorias_disponibles,
-            default=categorias_disponibles,
-            key="categorias_filtro"
+    faltan = [
+        columna for columna in COLUMNAS_ESPERADAS
+        if columna not in dataframe.columns
+    ]
+
+    if faltan:
+        raise ValueError(
+            "Faltan columnas del caso Bank Marketing: "
+            + ", ".join(faltan)
         )
 
-        if len(categorias_elegidas) == 0:
-            st.warning("Seleccione al menos una categoría para continuar.")
+    for columna in NUMERICAS_ESPERADAS:
+        original = dataframe[columna]
+        numerica = pd.to_numeric(original, errors="coerce")
 
-        elif len(columnas_seleccionadas) == 0:
-            st.warning("Seleccione al menos una columna para visualizar.")
+        invalidos = original.notna() & numerica.isna()
 
-        else:
-            df_filtrado = df[
-                df[variable_filtro].astype(str).isin(categorias_elegidas)
-            ]
-
-            st.success(
-                f"El filtro devuelve {df_filtrado.shape[0]:,} registros "
-                f"y se muestran {len(columnas_seleccionadas)} columnas."
+        if invalidos.any():
+            raise ValueError(
+                f"La columna '{columna}' contiene "
+                f"{int(invalidos.sum())} valores no numéricos."
             )
 
+        if np.isinf(numerica.dropna().to_numpy(dtype=float)).any():
+            raise ValueError(
+                f"La columna '{columna}' contiene valores infinitos."
+            )
+
+        dataframe[columna] = numerica
+
+    _, categoricas = clasificar_variables(dataframe)
+
+    for columna in categoricas:
+        dataframe[columna] = (
+            dataframe[columna].astype("string").str.strip()
+        )
+        dataframe[columna] = dataframe[columna].replace(
+            "", pd.NA
+        )
+
+    dataframe["y"] = dataframe["y"].str.lower()
+
+    etiquetas_invalidas = (
+        dataframe["y"].notna()
+        & ~dataframe["y"].isin(["yes", "no"])
+    )
+
+    if etiquetas_invalidas.any():
+        raise ValueError(
+            "La variable 'y' solo debe contener yes, no o nulos."
+        )
+
+    return dataframe
+
+
+def mostrar_estadisticas(analizador, variable):
+    resumen = analizador.resumen_variable(variable)
+
+    if resumen is None:
+        st.warning("Esta variable no tiene datos numéricos válidos.")
+        return
+
+    columnas = st.columns(4)
+    columnas[0].metric("Media", f"{resumen['media']:.2f}")
+    columnas[1].metric("Mediana", f"{resumen['mediana']:.2f}")
+
+    desviacion = resumen["desviacion"]
+    columnas[2].metric(
+        "Desviación estándar",
+        f"{desviacion:.2f}" if pd.notna(desviacion) else "No disponible"
+    )
+
+    modas = resumen["modas"]
+
+    if not modas:
+        texto_moda = "Sin moda"
+    elif len(modas) == 1:
+        texto_moda = f"{float(modas[0]):.2f}"
+    else:
+        texto_moda = f"{len(modas)} modas"
+
+    columnas[3].metric("Moda", texto_moda)
+
+    if len(modas) > 1:
+        st.write("Valores modales:", modas)
+
+    st.info(
+        f"En '{variable}', el promedio es {resumen['media']:.2f} "
+        f"y la mediana es {resumen['mediana']:.2f}. "
+        "La mediana divide los valores ordenados en dos mitades. "
+        "La desviación estándar resume la dispersión en las mismas "
+        "unidades de la variable. Comparar media y mediana no basta "
+        "para determinar la forma completa de la distribución."
+    )
+
+    st.caption(
+        "La desviación estándar y la varianza utilizan ddof=1 "
+        "tanto en los indicadores como en las tablas."
+    )
+
+
+# =========================================================
+# CARGA PERSISTENTE DURANTE LA SESIÓN
+# =========================================================
+st.sidebar.title("🏦 Menú principal")
+
+opcion = st.sidebar.selectbox(
+    "Seleccione un módulo:",
+    ["Home", "Carga del dataset", "Análisis EDA", "Conclusiones finales"]
+)
+
+# Permanece visible en todos los módulos para evitar perder
+# el estado del cargador al cambiar de sección.
+archivo = st.sidebar.file_uploader(
+    "Cargar BankMarketing.csv",
+    type=["csv"],
+    key="archivo_bankmarketing"
+)
+
+if archivo is None:
+    st.session_state.pop("dataset", None)
+    st.session_state.pop("firma_csv", None)
+    st.session_state.pop("error_csv", None)
+
+else:
+    contenido = archivo.getvalue()
+    firma = hashlib.sha256(contenido).hexdigest()
+
+    if firma != st.session_state.get("firma_csv"):
+        st.session_state.pop("dataset", None)
+        st.session_state.pop("error_csv", None)
+
+        # Evita conservar filtros de otro archivo.
+        for clave in list(st.session_state.keys()):
+            if clave.startswith("eda_"):
+                del st.session_state[clave]
+
+        st.session_state["firma_csv"] = firma
+
+        try:
+            st.session_state["dataset"] = cargar_dataset(contenido)
+        except Exception as error:
+            st.session_state["error_csv"] = str(error)
+
+if "dataset" in st.session_state:
+    st.sidebar.success("CSV cargado y validado.")
+elif "error_csv" in st.session_state:
+    st.sidebar.error("No se pudo validar el CSV.")
+
+st.sidebar.divider()
+st.sidebar.write(f"**Autor:** {AUTOR}")
+st.sidebar.write(f"**Curso:** {CURSO}")
+st.sidebar.write(f"**Año:** {ANIO}")
+
+
+# =========================================================
+# HOME
+# =========================================================
+if opcion == "Home":
+    st.title("🏦 Bank Marketing: Análisis Exploratorio de Datos")
+    st.subheader("Presentación del proyecto")
+
+    st.write(
+        "Aplicación interactiva para explorar el archivo "
+        "BankMarketing.csv mediante estadística descriptiva, "
+        "comparación de grupos y visualizaciones."
+    )
+
+    st.info(
+        "Objetivo: identificar características de los registros, "
+        "calidad de los datos y asociaciones con el resultado de "
+        "la campaña para apoyar decisiones de análisis."
+    )
+
+    izquierda, derecha = st.columns(2)
+
+    with izquierda:
+        st.subheader("Datos del autor")
+        st.write(f"**Nombre:** {AUTOR}")
+        st.write(f"**Curso / Especialización:** {CURSO}")
+        st.write(f"**Año:** {ANIO}")
+
+    with derecha:
+        st.subheader("Tecnologías")
+        st.write(
+            "Python, Streamlit, Pandas, NumPy, Matplotlib, "
+            "Seaborn y Programación Orientada a Objetos."
+        )
+
+    st.subheader("Descripción del dataset")
+    st.write(
+        "El archivo reúne características de clientes, contactos "
+        "de campañas bancarias e indicadores económicos. La variable "
+        "'y' registra el resultado: yes o no."
+    )
+
+    st.warning(
+        "El proyecto realiza EDA. No construye modelos predictivos "
+        "ni demuestra relaciones causales."
+    )
+    st.write("Para empezar, carga el CSV en la barra lateral.")
+    st.stop()
+
+
+# =========================================================
+# VALIDACIÓN PREVIA A CUALQUIER ANÁLISIS
+# =========================================================
+if "dataset" not in st.session_state:
+    st.title(opcion)
+    st.warning("Primero carga un CSV válido en la barra lateral.")
+
+    if "error_csv" in st.session_state:
+        st.error(st.session_state["error_csv"])
+
+    st.stop()
+
+df = st.session_state["dataset"]
+analizador = AnalizadorBankMarketing(df)
+numericas, categoricas = analizador.clasificar_variables()
+
+
+# =========================================================
+# CARGA DEL DATASET
+# =========================================================
+if opcion == "Carga del dataset":
+    st.title("📂 Carga del dataset")
+    st.success("El archivo fue cargado y validado correctamente.")
+
+    filas, columnas = analizador.obtener_dimensiones()
+    col1, col2 = st.columns(2)
+    col1.metric("Número de filas", f"{filas:,}")
+    col2.metric("Número de columnas", columnas)
+
+    st.subheader("Primeras cinco filas")
+    st.dataframe(
+        analizador.obtener_vista_previa(),
+        use_container_width=True
+    )
+
+    st.subheader("Nombres de las columnas")
+    st.write(df.columns.tolist())
+
+    st.caption(
+        "No se han imputado valores ni eliminado registros. "
+        "Se recortaron espacios de los textos, se normalizó 'y' "
+        "y se validaron las columnas numéricas."
+    )
+    st.stop()
+
+
+# =========================================================
+# RESULTADOS COMUNES PARA HALLAZGOS Y CONCLUSIONES
+# =========================================================
+validos_y = df["y"].isin(["yes", "no"])
+base_resultados = df.loc[validos_y].copy()
+n_validos = len(base_resultados)
+
+n_si = int(base_resultados["y"].eq("yes").sum())
+n_no = int(base_resultados["y"].eq("no").sum())
+tasa_si = n_si / n_validos * 100 if n_validos else np.nan
+
+ocupaciones = pd.DataFrame()
+
+if n_validos:
+    ocupaciones = (
+        base_resultados.assign(
+            positiva=base_resultados["y"].eq("yes").astype(int)
+        )
+        .groupby("job", dropna=False, observed=True)["positiva"]
+        .agg(["size", "sum", "mean"])
+        .reset_index()
+        .rename(columns={
+            "job": "Ocupación",
+            "size": "Registros",
+            "sum": "Positivos",
+            "mean": "Tasa positiva (%)"
+        })
+    )
+
+    ocupaciones["Ocupación"] = (
+        ocupaciones["Ocupación"].astype("string").fillna("(Nulo)")
+    )
+    ocupaciones["Tasa positiva (%)"] *= 100
+    ocupaciones = ocupaciones.sort_values(
+        "Tasa positiva (%)", ascending=False
+    )
+
+
+# =========================================================
+# CINCO CONCLUSIONES ORIENTADAS A DECISIONES
+# =========================================================
+if opcion == "Conclusiones finales":
+    st.title("📝 Conclusiones finales")
+
+    if not n_validos:
+        st.warning("No hay resultados válidos en 'y'.")
+        st.stop()
+
+    st.write(
+        "Conclusiones calculadas con el archivo cargado. "
+        "Las tasas utilizan registros con y igual a yes o no."
+    )
+
+    st.markdown(
+        f"**1. Resultado general y evaluación de la campaña.** "
+        f"Se registraron {n_si:,} resultados positivos de "
+        f"{n_validos:,} resultados válidos ({tasa_si:.2f}%). "
+        "Esta tasa sirve como referencia para comparar campañas; "
+        "antes de decidir aumentar el presupuesto deben incorporarse "
+        "los costos de contacto y el valor de las contrataciones."
+    )
+
+    if not ocupaciones.empty:
+        principal = ocupaciones.iloc[0]
+
+        st.markdown(
+            f"**2. Diferencias por ocupación.** "
+            f"El grupo '{principal['Ocupación']}' presenta la tasa "
+            f"observada más alta: {principal['Tasa positiva (%)']:.2f}%, "
+            f"con {int(principal['Registros']):,} registros. "
+            "Conviene investigar las diferencias entre segmentos "
+            "considerando sus tamaños, antes de priorizar uno. "
+            "La tasa por sí sola no demuestra mayor rentabilidad."
+        )
+
+    edad_grupos = base_resultados.groupby("y")["age"].mean()
+    edad_si = edad_grupos.get("yes", np.nan)
+    edad_no = edad_grupos.get("no", np.nan)
+
+    if pd.notna(edad_si) and pd.notna(edad_no):
+        st.markdown(
+            f"**3. Edad y segmentación.** "
+            f"La edad media es {edad_si:.2f} años en el grupo yes "
+            f"y {edad_no:.2f} en el grupo no. "
+            "Se deben revisar también las medianas y la dispersión; "
+            "estas medias no justifican por sí solas fijar un límite "
+            "de edad para seleccionar clientes."
+        )
+    else:
+        st.markdown(
+            "**3. Edad y segmentación.** No hay datos suficientes "
+            "para comparar la edad media de ambos resultados. "
+            "Es necesario completar la información antes de segmentar."
+        )
+
+    duracion_grupos = base_resultados.groupby("y")["duration"].mean()
+    duracion_si = duracion_grupos.get("yes", np.nan)
+    duracion_no = duracion_grupos.get("no", np.nan)
+
+    if pd.notna(duracion_si) and pd.notna(duracion_no):
+        st.markdown(
+            f"**4. Revisión de los contactos.** "
+            f"La duración media es {duracion_si:.2f} en yes "
+            f"y {duracion_no:.2f} en no, en las unidades del archivo. "
+            "Conviene revisar la calidad y el contenido de los contactos. "
+            "La asociación observada no demuestra que prolongarlos "
+            "provoque un resultado positivo."
+        )
+    else:
+        st.markdown(
+            "**4. Revisión de los contactos.** Faltan datos para "
+            "comparar la duración entre ambos grupos. "
+            "Conviene revisar su registro antes de tomar decisiones."
+        )
+
+    calidad = analizador.tabla_faltantes()
+    nulos_total = int(calidad["Nulos"].sum())
+    unknown_total = int(calidad["Unknown"].sum())
+
+    st.markdown(
+        f"**5. Calidad de información.** "
+        f"Se detectaron {nulos_total:,} celdas nulas y "
+        f"{unknown_total:,} celdas con 'unknown'. "
+        "Antes de decidir cómo tratar esas observaciones, debe "
+        "revisarse su significado y concentración por variable. "
+        "La ausencia de nulos no garantiza información completa."
+    )
+
+    st.warning(
+        "Las conclusiones describen este dataset. No prueban "
+        "causalidad ni garantizan resultados futuros."
+    )
+    st.stop()
+
+
+# =========================================================
+# ANÁLISIS EDA: DIEZ ÍTEMS
+# =========================================================
+st.title("📈 Análisis Exploratorio de Datos")
+st.success(f"Dataset disponible: {len(df):,} filas y {df.shape[1]} columnas.")
+
+tabs = st.tabs([
+    "1. Información",
+    "2. Clasificación",
+    "3. Estadísticas",
+    "4. Faltantes",
+    "5. Distribución",
+    "6. Categóricas",
+    "7. Num. vs cat.",
+    "8. Cat. vs cat.",
+    "9. Dinámico",
+    "10. Hallazgos"
+])
+
+
+# ---------------------------------------------------------
+# ÍTEM 1
+# ---------------------------------------------------------
+with tabs[0]:
+    st.header("Ítem 1: Información general del dataset")
+    st.write("Estructura, tipos de datos y conteo de nulos.")
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Filas", f"{len(df):,}")
+    col2.metric("Columnas", df.shape[1])
+    col3.metric("Celdas nulas", int(df.isna().sum().sum()))
+
+    st.subheader("Información obtenida con .info()")
+    st.code(analizador.obtener_info(), language="text")
+
+    st.subheader("Tipos de datos")
+    st.dataframe(
+        pd.DataFrame({
+            "Variable": df.columns,
+            "Tipo": df.dtypes.astype(str).values
+        }),
+        hide_index=True,
+        use_container_width=True
+    )
+
+    st.subheader("Nulos por variable")
+    st.dataframe(
+        analizador.tabla_faltantes()[["Variable", "Nulos", "Nulos (%)"]],
+        hide_index=True,
+        use_container_width=True
+    )
+
+
+# ---------------------------------------------------------
+# ÍTEM 2
+# ---------------------------------------------------------
+with tabs[1]:
+    st.header("Ítem 2: Clasificación de variables")
+    st.write(
+        "Una función personalizada, utilizada por la clase, "
+        "clasifica las columnas según su tipo de dato."
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.metric("Numéricas", len(numericas))
+        st.dataframe(
+            pd.DataFrame({"Variable numérica": numericas}),
+            hide_index=True
+        )
+
+    with col2:
+        st.metric("Categóricas", len(categoricas))
+        st.dataframe(
+            pd.DataFrame({"Variable categórica": categoricas}),
+            hide_index=True
+        )
+
+    resumen_tipos = pd.DataFrame({
+        "Tipo": ["Numéricas", "Categóricas"],
+        "Cantidad": [len(numericas), len(categoricas)]
+    })
+    st.bar_chart(resumen_tipos.set_index("Tipo"))
+
+    st.caption(
+        "La clasificación técnica no sustituye al diccionario de datos: "
+        "una variable numérica puede contener códigos especiales."
+    )
+
+
+# ---------------------------------------------------------
+# ÍTEM 3
+# ---------------------------------------------------------
+with tabs[2]:
+    st.header("Ítem 3: Estadísticas descriptivas")
+    st.write("Resumen con .describe(), media, mediana, moda y dispersión.")
+
+    st.dataframe(
+        analizador.estadisticas_descriptivas(numericas).round(2),
+        use_container_width=True
+    )
+
+    variable = st.selectbox(
+        "Variable a interpretar:",
+        numericas,
+        key="eda_estadisticas"
+    )
+    mostrar_estadisticas(analizador, variable)
+
+
+# ---------------------------------------------------------
+# ÍTEM 4
+# ---------------------------------------------------------
+with tabs[3]:
+    st.header("Ítem 4: Análisis de valores faltantes")
+    st.write(
+        "Se distinguen los nulos reconocidos por Pandas de "
+        "los textos 'unknown', que también requieren revisión."
+    )
+
+    calidad = analizador.tabla_faltantes()
+    st.dataframe(
+        calidad, hide_index=True, use_container_width=True
+    )
+
+    col1, col2 = st.columns(2)
+    col1.metric("Celdas nulas", int(calidad["Nulos"].sum()))
+    col2.metric("Celdas unknown", int(calidad["Unknown"].sum()))
+
+    afectados = calidad[
+        (calidad["Nulos"] > 0) | (calidad["Unknown"] > 0)
+    ]
+
+    if afectados.empty:
+        st.info(
+            "No se detectaron nulos ni textos 'unknown'. "
+            "Esto no descarta otros problemas de calidad."
+        )
+    else:
+        st.bar_chart(
+            afectados.set_index("Variable")[["Nulos", "Unknown"]]
+        )
+        st.warning(
+            "Revisar las variables afectadas antes de decidir "
+            "si corresponde imputar, conservar o excluir observaciones. "
+            "La aplicación no realiza estos cambios automáticamente."
+        )
+
+
+# ---------------------------------------------------------
+# ÍTEM 5
+# ---------------------------------------------------------
+with tabs[4]:
+    st.header("Ítem 5: Distribución de variables numéricas")
+    st.write(
+        "El histograma muestra concentraciones y colas; "
+        "las líneas indican media y mediana."
+    )
+
+    variable = st.selectbox(
+        "Variable numérica:",
+        numericas,
+        key="eda_histograma"
+    )
+
+    intervalos = st.slider(
+        "Número de intervalos:",
+        min_value=5,
+        max_value=60,
+        value=30,
+        step=5,
+        key="eda_intervalos"
+    )
+
+    mostrar_kde = st.checkbox(
+        "Mostrar curva de densidad",
+        value=True,
+        key="eda_kde"
+    )
+
+    mostrar_figura(
+        analizador.crear_histograma(variable, intervalos, mostrar_kde)
+    )
+
+    valores = analizador.valores_numericos(variable)
+    asimetria = valores.skew()
+
+    if pd.isna(asimetria):
+        st.info("No hay datos suficientes para interpretar la asimetría.")
+    else:
+        if asimetria > 0.5:
+            comentario = "Se observa asimetría positiva."
+        elif asimetria < -0.5:
+            comentario = "Se observa asimetría negativa."
+        else:
+            comentario = (
+                "La asimetría calculada es cercana a cero; "
+                "esto no implica normalidad."
+            )
+
+        st.info(
+            f"Asimetría de '{variable}': {asimetria:.2f}. "
+            f"{comentario} El umbral de 0.5 es una guía descriptiva."
+        )
+
+    st.caption(
+        "Antes de interpretar extremos, comprueba si corresponden "
+        "a mediciones o a códigos especiales del diccionario."
+    )
+
+
+# ---------------------------------------------------------
+# ÍTEM 6
+# ---------------------------------------------------------
+with tabs[5]:
+    st.header("Ítem 6: Análisis de variables categóricas")
+    st.write("Conteos, proporciones y categoría modal.")
+
+    variable = st.selectbox(
+        "Variable categórica:",
+        categoricas,
+        key="eda_categorica"
+    )
+
+    conteos = analizador.conteos_categoricos(variable)
+    st.dataframe(
+        conteos.round(2),
+        hide_index=True,
+        use_container_width=True
+    )
+
+    mostrar_figura(
+        analizador.crear_barras(
+            conteos.head(20),
+            "Cantidad",
+            "Categoría",
+            f"Frecuencias de {variable}"
+        )
+    )
+
+    if not conteos.empty:
+        maximo = conteos["Cantidad"].max()
+        modales = conteos.loc[
+            conteos["Cantidad"] == maximo, "Categoría"
+        ].tolist()
+
+        st.info(
+            f"Categoría(s) más frecuente(s): {', '.join(modales)}. "
+            f"Cada una tiene {int(maximo):,} registros "
+            f"({maximo / len(df) * 100:.2f}%)."
+        )
+
+    if len(conteos) > 20:
+        st.caption("El gráfico muestra las 20 categorías más frecuentes.")
+
+
+# ---------------------------------------------------------
+# ÍTEM 7
+# ---------------------------------------------------------
+with tabs[6]:
+    st.header("Ítem 7: Numérico vs categórico")
+    st.write("Comparación de distribución y estadísticos por grupo.")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        variable_num = st.selectbox(
+            "Variable numérica:",
+            numericas,
+            key="eda_bivariada_num"
+        )
+
+    with col2:
+        variable_cat = st.selectbox(
+            "Variable categórica:",
+            categoricas,
+            index=categoricas.index("y"),
+            key="eda_bivariada_cat"
+        )
+
+    comparacion = analizador.comparar_grupos(
+        variable_num, variable_cat
+    )
+
+    st.dataframe(comparacion.round(2), use_container_width=True)
+
+    mostrar_figura(
+        analizador.crear_boxplot(variable_num, variable_cat)
+    )
+
+    medias_validas = comparacion["Media"].dropna()
+
+    if not medias_validas.empty:
+        st.info(
+            f"Las medias de '{variable_num}' oscilan entre "
+            f"{medias_validas.min():.2f} y "
+            f"{medias_validas.max():.2f} entre los grupos. "
+            "Revisa también medianas, tamaños y dispersión. "
+            "La comparación es descriptiva, no una prueba de causalidad."
+        )
+
+
+# ---------------------------------------------------------
+# ÍTEM 8
+# ---------------------------------------------------------
+with tabs[7]:
+    st.header("Ítem 8: Categórico vs categórico")
+    st.write(
+        "Tabla de contingencia y porcentajes dentro de cada fila."
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        primera = st.selectbox(
+            "Primera variable:",
+            categoricas,
+            index=categoricas.index("education"),
+            key="eda_cat_primera"
+        )
+
+    opciones_segunda = [c for c in categoricas if c != primera]
+
+    with col2:
+        segunda = st.selectbox(
+            "Segunda variable:",
+            opciones_segunda,
+            index=(
+                opciones_segunda.index("y")
+                if "y" in opciones_segunda else 0
+            ),
+            key="eda_cat_segunda"
+        )
+
+    serie_primera = df[primera].astype("string").fillna("(Nulo)")
+    serie_segunda = df[segunda].astype("string").fillna("(Nulo)")
+
+    frecuencias = pd.crosstab(serie_primera, serie_segunda)
+    porcentajes = frecuencias.div(
+        frecuencias.sum(axis=1), axis=0
+    ) * 100
+
+    st.subheader("Frecuencias")
+    st.dataframe(frecuencias, use_container_width=True)
+
+    st.subheader("Porcentajes por fila")
+    st.dataframe(porcentajes.round(2), use_container_width=True)
+
+    mostrar_figura(
+        analizador.crear_mapa_calor(
+            porcentajes,
+            f"{primera} frente a {segunda}"
+        )
+    )
+
+    st.info(
+        "Cada fila suma aproximadamente 100%. Los porcentajes permiten "
+        "comparar grupos de distinto tamaño, pero los grupos pequeños "
+        "pueden mostrar tasas extremas con pocos casos."
+    )
+
+
+# ---------------------------------------------------------
+# ÍTEM 9
+# ---------------------------------------------------------
+with tabs[8]:
+    st.header("Ítem 9: Análisis dinámico")
+    st.write("Selecciona columnas y categorías para explorar un subconjunto.")
+
+    seleccionadas = st.multiselect(
+        "Columnas a visualizar:",
+        options=df.columns.tolist(),
+        default=["age", "job", "education", "duration", "y"],
+        key="eda_columnas"
+    )
+
+    filtro = st.selectbox(
+        "Variable categórica para filtrar:",
+        categoricas,
+        index=categoricas.index("y"),
+        key="eda_filtro"
+    )
+
+    serie_filtro = df[filtro].astype("string").fillna("(Nulo)")
+    opciones = sorted(serie_filtro.unique().tolist())
+
+    elegidas = st.multiselect(
+        f"Valores de {filtro}:",
+        options=opciones,
+        default=opciones,
+        key=f"eda_valores_{filtro}"
+    )
+
+    if not seleccionadas or not elegidas:
+        st.warning("Selecciona al menos una columna y una categoría.")
+
+    else:
+        filtrado = df.loc[serie_filtro.isin(elegidas)].copy()
+
+        if filtrado.empty:
+            st.warning("No hay registros para esta selección.")
+        else:
+            st.success(
+                f"{len(filtrado):,} registros y "
+                f"{len(seleccionadas)} columnas seleccionadas."
+            )
+
+            st.caption("Vista previa: hasta 100 registros.")
             st.dataframe(
-                df_filtrado[columnas_seleccionadas].head(100),
+                filtrado[seleccionadas].head(100),
                 use_container_width=True
             )
 
-            numericas_seleccionadas = [
-                columna for columna in columnas_seleccionadas
-                if columna in numericas
+            analizador_filtrado = AnalizadorBankMarketing(filtrado)
+            numericas_elegidas = [
+                c for c in seleccionadas if c in numericas
             ]
 
-            if len(numericas_seleccionadas) > 0:
-
-                st.subheader("Resumen de columnas numéricas seleccionadas")
-
+            if numericas_elegidas:
                 st.dataframe(
-                    df_filtrado[numericas_seleccionadas]
-                    .describe()
-                    .T
-                    .round(2),
+                    analizador_filtrado.estadisticas_descriptivas(
+                        numericas_elegidas
+                    ).round(2),
                     use_container_width=True
                 )
 
-                variable_grafico = st.selectbox(
-                    "Seleccione una variable para el gráfico dinámico:",
-                    numericas_seleccionadas,
-                    key="grafico_dinamico"
+                variable = st.selectbox(
+                    "Variable del histograma filtrado:",
+                    numericas_elegidas,
+                    key="eda_grafico_filtrado"
                 )
 
-                fig, ax = plt.subplots(figsize=(10, 5))
-
-                sns.histplot(
-                    data=df_filtrado,
-                    x=variable_grafico,
-                    bins=30,
-                    kde=True,
-                    color="#17A589",
-                    ax=ax
+                mostrar_figura(
+                    analizador_filtrado.crear_histograma(variable)
                 )
 
-                ax.set_title(
-                    f"Distribución dinámica de {variable_grafico}"
-                )
-                ax.set_xlabel(variable_grafico)
-                ax.set_ylabel("Frecuencia")
-
-                st.pyplot(fig)
-                plt.close(fig)
-
-                st.info(
-                    f"La variable '{variable_grafico}' tiene una media de "
-                    f"{df_filtrado[variable_grafico].mean():.2f} dentro "
-                    f"del conjunto de datos filtrado."
-                )
+                mostrar_estadisticas(analizador_filtrado, variable)
 
             else:
-                st.info(
-                    """
-                    No se seleccionaron variables numéricas. Seleccione al
-                    menos una para generar estadísticas y un histograma.
-                    """
+                variable = st.selectbox(
+                    "Variable del gráfico categórico filtrado:",
+                    seleccionadas,
+                    key="eda_grafico_cat_filtrado"
                 )
 
+                conteos = analizador_filtrado.conteos_categoricos(variable)
 
-    # -----------------------------------------------------
-    # ÍTEM 10: HALLAZGOS CLAVE
-    # -----------------------------------------------------
-    with tab10:
+                mostrar_figura(
+                    analizador_filtrado.crear_barras(
+                        conteos.head(20),
+                        "Cantidad",
+                        "Categoría",
+                        f"{variable}: datos filtrados"
+                    )
+                )
 
-        st.header("Ítem 10: Hallazgos clave")
+            st.caption(
+                "Las estadísticas y gráficos utilizan todos los registros "
+                "filtrados, no solo las 100 filas de la vista previa."
+            )
 
-        st.write(
-            """
-            Esta sección resume los principales resultados obtenidos mediante
-            el análisis exploratorio del dataset Bank Marketing.
-            """
+
+# ---------------------------------------------------------
+# ÍTEM 10
+# ---------------------------------------------------------
+with tabs[9]:
+    st.header("Ítem 10: Hallazgos clave")
+    st.write(
+        "Resumen del dataset completo. Los filtros del ítem 9 "
+        "no modifican estos resultados."
+    )
+
+    if not n_validos:
+        st.warning("No existen valores yes/no válidos en la variable y.")
+
+    else:
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Registros totales", f"{len(df):,}")
+        col2.metric("Resultados positivos", f"{n_si:,}")
+        col3.metric("Resultados negativos", f"{n_no:,}")
+        col4.metric("Tasa positiva", f"{tasa_si:.2f}%")
+
+        st.caption(
+            f"Denominador de la tasa: {n_validos:,} resultados válidos. "
+            f"Resultados nulos excluidos: {len(df) - n_validos:,}."
         )
 
-        if "y" in df.columns:
+        resultados = pd.DataFrame({
+            "Respuesta": ["no", "yes"],
+            "Cantidad": [n_no, n_si]
+        })
 
-            total_clientes = len(df)
-            total_si = int((df["y"] == "yes").sum())
-            total_no = int((df["y"] == "no").sum())
-            tasa_respuesta = total_si / total_clientes * 100
-
-            col1, col2, col3, col4 = st.columns(4)
-
-            with col1:
-                st.metric("Clientes analizados", f"{total_clientes:,}")
-
-            with col2:
-                st.metric("Respuesta positiva", f"{total_si:,}")
-
-            with col3:
-                st.metric("Respuesta negativa", f"{total_no:,}")
-
-            with col4:
-                st.metric("Tasa de respuesta positiva", f"{tasa_respuesta:.2f}%")
-
-            st.subheader("Resultado general de la campaña")
-
-            resultados_campana = (
-                df["y"]
-                .value_counts()
-                .rename_axis("Respuesta")
-                .reset_index(name="Cantidad")
+        mostrar_figura(
+            analizador.crear_barras(
+                resultados,
+                "Cantidad",
+                "Respuesta",
+                "Resultado general de la campaña",
+                color="#2E86C1"
             )
+        )
 
-            fig, ax = plt.subplots(figsize=(8, 5))
+        st.subheader("Tasa positiva por ocupación")
+        st.dataframe(
+            ocupaciones.round(2),
+            hide_index=True,
+            use_container_width=True
+        )
 
-            sns.barplot(
-                data=resultados_campana,
-                x="Respuesta",
-                y="Cantidad",
-                hue="Respuesta",
-                palette={
-                    "no": "#E74C3C",
-                    "yes": "#2ECC71"
-                },
-                legend=False,
-                ax=ax
-            )
-
-            ax.set_title("Respuesta a la campaña bancaria")
-            ax.set_xlabel("Respuesta")
-            ax.set_ylabel("Cantidad de clientes")
-
-            st.pyplot(fig)
-            plt.close(fig)
-
-            edad_si = df.loc[df["y"] == "yes", "age"].mean()
-            edad_no = df.loc[df["y"] == "no", "age"].mean()
-
-            duracion_si = df.loc[df["y"] == "yes", "duration"].mean()
-            duracion_no = df.loc[df["y"] == "no", "duration"].mean()
-
-            tasa_por_trabajo = (
-                df.assign(
-                    respuesta_positiva=(df["y"] == "yes").astype(int)
-                )
-                .groupby("job")["respuesta_positiva"]
-                .agg(["mean", "count"])
-                .reset_index()
-            )
-
-            tasa_por_trabajo["Tasa positiva (%)"] = (
-                tasa_por_trabajo["mean"] * 100
-            ).round(2)
-
-            tasa_por_trabajo = tasa_por_trabajo.sort_values(
+        mostrar_figura(
+            analizador.crear_barras(
+                ocupaciones,
                 "Tasa positiva (%)",
-                ascending=False
+                "Ocupación",
+                "Resultados positivos dentro de cada ocupación",
+                color="#17A589"
             )
+        )
 
-            st.subheader("Tasa de respuesta positiva por ocupación")
+        edad = base_resultados.groupby("y")["age"].agg(
+            ["mean", "median"]
+        )
+        duracion = base_resultados.groupby("y")["duration"].mean()
 
-            fig, ax = plt.subplots(figsize=(10, 6))
+        st.subheader("Hallazgos derivados del EDA")
+        st.write(
+            f"1. Se registran {n_si:,} resultados positivos: "
+            f"{tasa_si:.2f}% de los resultados válidos."
+        )
+        st.write(
+            f"2. Se registran {n_no:,} resultados negativos: "
+            f"{n_no / n_validos * 100:.2f}%."
+        )
 
-            sns.barplot(
-                data=tasa_por_trabajo,
-                x="Tasa positiva (%)",
-                y="job",
-                color="#3498DB",
-                ax=ax
-            )
+        st.write("3. Edad media y mediana por resultado:")
+        st.dataframe(
+            edad.rename(columns={
+                "mean": "Media",
+                "median": "Mediana"
+            }).round(2)
+        )
 
-            ax.set_title("Respuesta positiva según ocupación")
-            ax.set_xlabel("Tasa de respuesta positiva (%)")
-            ax.set_ylabel("Ocupación")
+        st.write("4. Duración media por resultado:")
+        st.dataframe(
+            duracion.rename("Duración media").to_frame().round(2)
+        )
 
-            st.pyplot(fig)
-            plt.close(fig)
+        principal = ocupaciones.iloc[0]
+        st.write(
+            f"5. La ocupación con mayor tasa observada es "
+            f"'{principal['Ocupación']}': "
+            f"{principal['Tasa positiva (%)']:.2f}%, "
+            f"con {int(principal['Registros']):,} registros."
+        )
 
-            mejor_trabajo = tasa_por_trabajo.iloc[0]
+        st.warning(
+            "Una tasa alta en un grupo pequeño requiere cautela. "
+            "Los resultados no demuestran causalidad ni equivalen "
+            "a predicciones."
+        )
 
-            st.subheader("Principales insights derivados del EDA")
-
-            st.markdown(
-                f"""
-                1. La campaña obtuvo **{total_si:,} respuestas positivas**,
-                   equivalentes al **{tasa_respuesta:.2f}%** del total.
-
-                2. La mayoría de los registros corresponde a respuestas
-                   negativas: **{total_no:,} clientes**.
-
-                3. La edad promedio de quienes respondieron positivamente fue
-                   de **{edad_si:.2f} años**, frente a **{edad_no:.2f} años**
-                   entre quienes respondieron negativamente.
-
-                4. La duración promedio del contacto fue de
-                   **{duracion_si:.2f} segundos** en las respuestas positivas
-                   y de **{duracion_no:.2f} segundos** en las negativas.
-
-                5. La ocupación con mayor proporción de respuestas positivas
-                   fue **{mejor_trabajo['job']}**, con una tasa de
-                   **{mejor_trabajo['Tasa positiva (%)']:.2f}%**.
-                """
-            )
-
-            st.warning(
-                """
-                Los resultados describen asociaciones observadas en el
-                dataset y no demuestran relaciones de causa y efecto.
-                Además, este proyecto no desarrolla modelos predictivos.
-                """
-            )
-
-        else:
-            st.error(
-                "No se encontró la variable objetivo 'y' en el dataset."
-            )
+        st.info(
+            "Consulta el módulo 'Conclusiones finales' del menú "
+            "para ver cinco conclusiones orientadas a decisiones."
+        )
