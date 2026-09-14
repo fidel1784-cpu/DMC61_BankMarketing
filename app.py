@@ -212,14 +212,16 @@ elif opcion == "Análisis EDA":
 
     numericas, categoricas = clasificar_variables(df)
 
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "1️⃣ Información general",
-        "2️⃣ Clasificación",
-        "3️⃣ Estadísticas",
-        "4️⃣ Valores faltantes",
-        "5️⃣ Distribución numérica",
-        "6️⃣ Variables categóricas"
-    ])
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    "1️⃣ Información general",
+    "2️⃣ Clasificación",
+    "3️⃣ Estadísticas",
+    "4️⃣ Valores faltantes",
+    "5️⃣ Distribución numérica",
+    "6️⃣ Variables categóricas",
+    "7️⃣ Numérico vs categórico",
+    "8️⃣ Categórico vs categórico"
+])
 
     # -----------------------------------------------------
     # ÍTEM 1: INFORMACIÓN GENERAL DEL DATASET
@@ -740,4 +742,199 @@ elif opcion == "Análisis EDA":
             f"frecuente es '{categoria_principal}', con "
             f"{cantidad_principal:,} registros, equivalentes al "
             f"{proporcion_principal:.2f}% del total."
+        )
+    # -----------------------------------------------------
+    # ÍTEM 7: ANÁLISIS BIVARIADO NUMÉRICO VS CATEGÓRICO
+    # -----------------------------------------------------
+    with tab7:
+
+        st.header("Ítem 7: Análisis bivariado — numérico vs categórico")
+
+        st.write(
+            """
+            Este análisis compara la distribución de una variable numérica
+            entre los diferentes grupos de una variable categórica.
+            """
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            variable_num_bivariada = st.selectbox(
+                "Seleccione la variable numérica:",
+                numericas,
+                index=numericas.index("age") if "age" in numericas else 0,
+                key="numerica_bivariada"
+            )
+
+        with col2:
+            indice_y = categoricas.index("y") if "y" in categoricas else 0
+
+            variable_cat_bivariada = st.selectbox(
+                "Seleccione la variable categórica:",
+                categoricas,
+                index=indice_y,
+                key="categorica_bivariada"
+            )
+
+        resumen_bivariado = (
+            df.groupby(variable_cat_bivariada)[variable_num_bivariada]
+            .agg(["count", "mean", "median", "std"])
+            .round(2)
+            .reset_index()
+        )
+
+        resumen_bivariado.columns = [
+            variable_cat_bivariada,
+            "Cantidad",
+            "Media",
+            "Mediana",
+            "Desviación estándar"
+        ]
+
+        st.subheader("Resumen por categoría")
+
+        st.dataframe(
+            resumen_bivariado,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.subheader("Comparación mediante diagrama de cajas")
+
+        fig, ax = plt.subplots(figsize=(11, 6))
+
+        sns.boxplot(
+            data=df,
+            x=variable_cat_bivariada,
+            y=variable_num_bivariada,
+            color="#5DADE2",
+            ax=ax
+        )
+
+        ax.set_title(
+            f"{variable_num_bivariada} según {variable_cat_bivariada}"
+        )
+        ax.set_xlabel(variable_cat_bivariada)
+        ax.set_ylabel(variable_num_bivariada)
+        ax.tick_params(axis="x", rotation=45)
+
+        st.pyplot(fig)
+        plt.close(fig)
+
+        categoria_media_mayor = resumen_bivariado.loc[
+            resumen_bivariado["Media"].idxmax()
+        ]
+
+        categoria_media_menor = resumen_bivariado.loc[
+            resumen_bivariado["Media"].idxmin()
+        ]
+
+        st.info(
+            f"La categoría '{categoria_media_mayor[variable_cat_bivariada]}' "
+            f"presenta la mayor media de {variable_num_bivariada}, con "
+            f"{categoria_media_mayor['Media']:.2f}. La categoría "
+            f"'{categoria_media_menor[variable_cat_bivariada]}' presenta "
+            f"la menor media, con {categoria_media_menor['Media']:.2f}."
+        )
+
+
+    # -----------------------------------------------------
+    # ÍTEM 8: ANÁLISIS BIVARIADO CATEGÓRICO VS CATEGÓRICO
+    # -----------------------------------------------------
+    with tab8:
+
+        st.header("Ítem 8: Análisis bivariado — categórico vs categórico")
+
+        st.write(
+            """
+            La tabla de contingencia permite comparar las frecuencias y
+            proporciones existentes entre dos variables categóricas.
+            """
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            primera_categorica = st.selectbox(
+                "Seleccione la primera variable:",
+                categoricas,
+                index=categoricas.index("education")
+                if "education" in categoricas else 0,
+                key="primera_categorica"
+            )
+
+        opciones_segunda = [
+            variable for variable in categoricas
+            if variable != primera_categorica
+        ]
+
+        with col2:
+            indice_segunda = (
+                opciones_segunda.index("y")
+                if "y" in opciones_segunda else 0
+            )
+
+            segunda_categorica = st.selectbox(
+                "Seleccione la segunda variable:",
+                opciones_segunda,
+                index=indice_segunda,
+                key="segunda_categorica"
+            )
+
+        tabla_contingencia = pd.crosstab(
+            df[primera_categorica],
+            df[segunda_categorica]
+        )
+
+        tabla_porcentajes = pd.crosstab(
+            df[primera_categorica],
+            df[segunda_categorica],
+            normalize="index"
+        ) * 100
+
+        st.subheader("Tabla de frecuencias")
+
+        st.dataframe(
+            tabla_contingencia,
+            use_container_width=True
+        )
+
+        st.subheader("Proporciones por fila (%)")
+
+        st.dataframe(
+            tabla_porcentajes.round(2),
+            use_container_width=True
+        )
+
+        st.subheader("Mapa de calor de proporciones")
+
+        fig, ax = plt.subplots(figsize=(11, 6))
+
+        sns.heatmap(
+            tabla_porcentajes,
+            annot=True,
+            fmt=".1f",
+            cmap="Blues",
+            linewidths=0.5,
+            ax=ax
+        )
+
+        ax.set_title(
+            f"Relación entre {primera_categorica} y {segunda_categorica}"
+        )
+        ax.set_xlabel(segunda_categorica)
+        ax.set_ylabel(primera_categorica)
+
+        st.pyplot(fig)
+        plt.close(fig)
+
+        combinacion_principal = tabla_contingencia.stack().idxmax()
+        frecuencia_principal = int(tabla_contingencia.stack().max())
+
+        st.info(
+            f"La combinación más frecuente corresponde a "
+            f"'{primera_categorica} = {combinacion_principal[0]}' y "
+            f"'{segunda_categorica} = {combinacion_principal[1]}', con "
+            f"{frecuencia_principal:,} registros."
         )
